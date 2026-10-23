@@ -168,7 +168,7 @@ class ClinicalTrialsClient:
         for raw in data.get("studies") or []:
             try:
                 trial = parse_study(raw)
-            except (AttributeError, TypeError, ValueError, KeyError) as exc:
+            except Exception as exc:
                 # One oddly shaped record must not sink the whole search.
                 log.warning("Skipping a malformed registry record (%s)", type(exc).__name__)
                 continue

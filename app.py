@@ -227,12 +227,22 @@ def explain(exc: BaseException) -> str:
             "We couldn't reach ClinicalTrials.gov just now. Please try again in a moment, or "
             "search it yourself at clinicaltrials.gov."
         )
-    return "Something unexpected went wrong. Please try again in a moment."
+    if isinstance(exc, (TimeoutError, ConnectionError, OSError, MemoryError)):
+        return "The search was interrupted before it finished. Please wait a minute and try again."
+    return f"Something unexpected went wrong ({type(exc).__name__}). Please try again in a moment."
 
 
 def _refuse(message: str) -> None:
     """Show a message without touching any results already on the page."""
     st.session_state["error"] = message
+
+
+def _show_progress(status: Any, message: str) -> None:
+    """Update the status line. A display glitch must not throw away a search that is still running."""
+    try:
+        status.write(escape_md(message))
+    except Exception as exc:
+        log.warning("Progress update failed: %s", type(exc).__name__)
 
 
 def handle_submit(settings: Settings, inputs: SearchInputs) -> None:
@@ -272,7 +282,7 @@ def handle_submit(settings: Settings, inputs: SearchInputs) -> None:
                 location=inputs.location,
                 include_opening_soon=inputs.include_soon,
                 max_trials=inputs.max_trials,
-                on_progress=lambda message: status.write(escape_md(message)),
+                on_progress=lambda message: _show_progress(status, message),
             )
         except Exception as exc:  # shown to the visitor as a plain message; logged by kind only
             log.warning("Search failed: %s (%s)", type(exc).__name__, getattr(exc, "kind", "-"))

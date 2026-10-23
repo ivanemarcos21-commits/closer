@@ -161,6 +161,21 @@ def test_per_minute_limit_waits_for_the_delay_google_asks_for():
     assert sleeps == [7.0]
 
 
+def test_a_low_token_budget_pauses_before_the_next_call():
+    clock = {"now": 0.0}
+
+    def handler(request):
+        return httpx.Response(
+            200,
+            json=groq_reply('{"ok": true}'),
+            headers={"x-ratelimit-remaining-tokens": "100", "x-ratelimit-reset-tokens": "5s"},
+        )
+
+    llm, sleeps = make_groq(handler, clock=lambda: clock["now"])
+    assert ask(llm).ok and sleeps == []
+    assert ask(llm).ok and sleeps == [5.0]
+
+
 def test_a_request_bigger_than_the_token_limit_is_not_retried():
     calls = []
 

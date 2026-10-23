@@ -173,6 +173,7 @@ class GroqLLM:
         self._deadline_s = deadline_s
         self._sleep = sleep
         self._clock = clock
+        self._resume_at = 0.0
         self._owns_client = http_client is None
         self._http = http_client or httpx.Client(timeout=timeout_s)
 
@@ -199,6 +200,7 @@ class GroqLLM:
         started = self._clock()
         for attempt in range(1, self._max_attempts + 1):
             try:
+                self._wait_for_token_budget(started)
                 response = self._http.post(
                     API_URL,
                     json=body,
@@ -206,6 +208,7 @@ class GroqLLM:
                 )
                 if response.status_code != 200:
                     raise _error_from_response(response)
+                self._remember_token_budget(response)
                 return _parse_response(response.json(), schema)
             except LLMError as err:
                 error = err
@@ -222,6 +225,28 @@ class GroqLLM:
             log.warning("Groq call failed (%s); retry %d in %.0fs", error.kind, attempt, delay)
             self._sleep(delay)
         raise AssertionError("unreachable")
+
+    def _wait_for_token_budget(self, started: float) -> None:
+        """The free plan allows about 8,000 tokens a minute. Wait out a known reset before asking again."""
+        delay = self._resume_at - self._clock()
+        if delay <= 0.5:
+            return
+        if self._clock() - started + delay > self._deadline_s:
+            return
+        log.warning("Waiting %.0fs for Groq's token limit to reset", delay)
+        self._sleep(delay)
+
+    def _remember_token_budget(self, response: httpx.Response) -> None:
+        try:
+            remaining = float(response.headers.get("x-ratelimit-remaining-tokens", ""))
+        except ValueError:
+            return
+        if remaining >= 2500:
+            return
+        reset = _parse_reset_interval(response.headers.get("x-ratelimit-reset-tokens", ""))
+        if reset is None:
+            return
+        self._resume_at = self._clock() + min(reset, _MAX_RETRY_DELAY_S)
 
 
 def _error_from_response(response: httpx.Response) -> LLMError:
@@ -289,6 +314,21 @@ def _token_figures(message: str) -> tuple[int | None, int | None]:
         int(requested.group(1)) if requested else None,
         int(limit.group(1)) if limit else None,
     )
+
+
+def _parse_reset_interval(value: str) -> float | None:
+    """Groq sends token-reset delays as ``6.547s`` or ``1ms``."""
+    text = value.strip().lower()
+    if not text:
+        return None
+    try:
+        if text.endswith("ms"):
+            return float(text[:-2]) / 1000.0
+        if text.endswith("s"):
+            return float(text[:-1])
+        return float(text)
+    except ValueError:
+        return None
 
 
 def _retry_after_header(response: httpx.Response) -> float | None:
