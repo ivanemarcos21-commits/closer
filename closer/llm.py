@@ -35,7 +35,7 @@ _MAX_RETRY_DELAY_S = 30.0
 # "blocked" answer depends on that one request's text, so it is NOT in this set.)
 FATAL_KINDS = frozenset({"auth", "model", "quota_daily", "certificate"})
 _RETRYABLE_KINDS = frozenset({"rate_limit", "unavailable", "network", "bad_output"})
-MAX_OUTPUT_TOKENS = 2048  # a two-study answer is far smaller; a high cap makes the free tier wait
+MAX_OUTPUT_TOKENS = 4096  # enough for a full profile; the old 8192 cap made the free tier wait
 
 _BUSY_FOR_PATIENTS = "The AI helper is busy right now. Please wait a minute and try again."
 _PATIENT_MESSAGES = {
@@ -366,14 +366,19 @@ def _parse_response(payload: Any, schema: type[T]) -> T:
         message = {}
     finish = str((choices[0].get("finish_reason") if choices and isinstance(choices[0], dict) else "") or "")
     text = message.get("content")
+    if not isinstance(text, str) or not text.strip():
+        reasoning = message.get("reasoning")
+        text = reasoning if isinstance(reasoning, str) else ""
     if finish.lower() in {"content_filter", "safety"} or message.get("refusal"):
         raise LLMError(f"Groq declined to process this text ({finish or 'refusal'}).", kind="blocked")
-    if not isinstance(text, str) or not text.strip():
+    if not text.strip():
         raise LLMError("Groq returned an empty answer.", kind="bad_output")
+    parsed = _load_json_value(text)
+    if parsed is None:
+        raise LLMError("Groq answered in an unexpected format.", kind="bad_output")
     try:
-        parsed = json.loads(_strip_json_fence(text))
         return schema.model_validate(_coerce_payload(parsed))
-    except (ValidationError, json.JSONDecodeError) as exc:
+    except ValidationError as exc:
         raise LLMError("Groq answered in an unexpected format.", kind="bad_output") from exc
 
 
@@ -389,6 +394,53 @@ _STRING_LISTS = frozenset(
     }
 )
 _ENUMS = {"sex": frozenset({"FEMALE", "MALE", "UNKNOWN"}), "verdict": frozenset({"YES", "MAYBE", "NO"})}
+_SEX_WORDS = {
+    "FEMALE": "FEMALE",
+    "F": "FEMALE",
+    "WOMAN": "FEMALE",
+    "WOMEN": "FEMALE",
+    "GIRL": "FEMALE",
+    "MALE": "MALE",
+    "M": "MALE",
+    "MAN": "MALE",
+    "MEN": "MALE",
+    "BOY": "MALE",
+    "UNKNOWN": "UNKNOWN",
+    "UNSPECIFIED": "UNKNOWN",
+    "OTHER": "UNKNOWN",
+}
+
+
+def _coerce_enum(key: str, value: str) -> str:
+    upper = value.strip().upper()
+    if key == "sex":
+        return _SEX_WORDS.get(upper, "UNKNOWN")
+    if upper in _ENUMS["verdict"]:
+        return upper
+    if "MAYBE" in upper or "POSSIBLE" in upper or "UNSURE" in upper or upper.startswith("NOT "):
+        return "MAYBE"
+    if upper.startswith("YES"):
+        return "YES"
+    if upper.startswith("NO"):
+        return "NO"
+    return "MAYBE"
+
+
+def _coerce_search(item: Any) -> dict[str, Any] | None:
+    if isinstance(item, str) and item.strip():
+        return {"condition": item.strip(), "extra_terms": None}
+    if not isinstance(item, dict):
+        return None
+    condition = item.get("condition")
+    if not isinstance(condition, str) or not condition.strip():
+        for alt in ("query", "disease", "name", "term"):
+            alt_value = item.get(alt)
+            if isinstance(alt_value, str) and alt_value.strip():
+                item = {**item, "condition": alt_value.strip()}
+                break
+        else:
+            return None
+    return item
 
 
 def _coerce_payload(data: Any) -> Any:
@@ -403,9 +455,10 @@ def _coerce_payload(data: Any) -> Any:
     tidied: dict[str, Any] = {}
     for key, value in data.items():
         if key in _ENUMS and isinstance(value, str):
-            upper = value.strip().upper()
-            value = upper if upper in _ENUMS[key] else value
-        elif key in _STRING_LISTS or key in {"searches", "assessments"}:
+            value = _coerce_enum(key, value)
+        elif key == "searches":
+            value = [plan for item in _coerce_list(key, value) if (plan := _coerce_search(item))]
+        elif key in _STRING_LISTS or key == "assessments":
             value = _coerce_list(key, value)
         elif key == "extra_terms" and not isinstance(value, str):
             if isinstance(value, list):
@@ -445,6 +498,22 @@ def _coerce_list(key: str, value: Any) -> list[Any]:
             if isinstance(text, str) and text.strip():
                 items.append(text.strip())
     return items
+
+
+def _load_json_value(text: str) -> Any | None:
+    """Read the first JSON object in a model reply, even if prose surrounds it."""
+    stripped = _strip_json_fence(text).strip()
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        start = stripped.find("{")
+        end = stripped.rfind("}")
+        if start == -1 or end <= start:
+            return None
+        try:
+            return json.loads(stripped[start : end + 1])
+        except json.JSONDecodeError:
+            return None
 
 
 def _strip_json_fence(text: str) -> str:

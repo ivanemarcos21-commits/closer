@@ -113,7 +113,7 @@ def test_request_matches_the_groq_chat_completions_format():
     schema = body["response_format"]["json_schema"]
     assert schema["name"] == "Answer"
     assert schema["schema"]["properties"]["ok"] == {"type": "boolean"}
-    assert body["max_tokens"] == 2048
+    assert body["max_tokens"] == 4096
     assert body["reasoning_effort"] == "low"
 
 
@@ -175,6 +175,38 @@ def test_a_low_token_budget_pauses_before_the_next_call():
     llm, sleeps = make_groq(handler, clock=lambda: clock["now"])
     assert ask(llm).ok and sleeps == []
     assert ask(llm).ok and sleeps == [5.0]
+
+
+def test_a_profile_answer_with_plain_words_still_parses():
+    payload = {
+        "summary": "A 62-year-old man with lung cancer.",
+        "primary_condition": "Lung cancer",
+        "sex": "male",
+        "age_years": "62",
+        "searches": [
+            "Lung cancer",
+            {"disease": "Non-small cell lung cancer", "extra_terms": ["stage III", "chemotherapy"]},
+        ],
+    }
+    text = "Here is the profile:\n" + json.dumps(payload)
+    llm, _ = make_groq(lambda r: httpx.Response(200, json=groq_reply(text)))
+    profile = llm.generate(system="s", prompt="p", schema=PatientProfile)
+    assert profile.sex == "MALE" and profile.age_years == 62
+    assert [plan.condition for plan in profile.searches] == ["Lung cancer", "Non-small cell lung cancer"]
+    assert profile.searches[1].extra_terms == "stage III OR chemotherapy"
+
+
+def test_json_in_the_reasoning_field_is_used_when_content_is_empty():
+    reply = {
+        "choices": [
+            {
+                "message": {"role": "assistant", "content": "", "reasoning": '{"ok": true}'},
+                "finish_reason": "stop",
+            }
+        ]
+    }
+    llm, _ = make_groq(lambda r: httpx.Response(200, json=reply))
+    assert ask(llm).ok
 
 
 def test_a_sloppy_answer_is_tidied_instead_of_rejected():
