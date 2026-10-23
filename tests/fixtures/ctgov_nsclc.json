@@ -1,0 +1,425 @@
+{
+ "totalCount": 114,
+ "studies": [
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT06855771",
+     "briefTitle": "A Study of Navlimetostat (BMS-986504) Alone or in Combination With Izalontamab Brengitecan in Participants With Pre-treated Advanced or Metastatic Non-small Cell Lung Cancer (NSCLC) With Homozygous MTAP Deletion or MTAP Loss (MountainTAP-9)",
+     "officialTitle": "A Multicenter, Randomized, Open-label, Phase 2 Study Evaluating the Safety and Efficacy of Navlimetostat (BMS-986504) Monotherapy and in Combination With Izalontamab Brengitecan in Participants With Advanced or Metastatic Non-small Cell Lung Cancer (NSCLC) With Homozygous MTAP Deletion or MTAP Loss After Progression on Prior Therapies"
+    },
+    "statusModule": {
+     "overallStatus": "RECRUITING",
+     "startDateStruct": {
+      "date": "2025-09-09"
+     },
+     "primaryCompletionDateStruct": {
+      "date": "2028-12-29"
+     },
+     "lastUpdatePostDateStruct": {
+      "date": "2026-09-18"
+     }
+    },
+    "sponsorCollaboratorsModule": {
+     "leadSponsor": {
+      "name": "Bristol-Myers Squibb"
+     }
+    },
+    "descriptionModule": {
+     "briefSummary": "The purpose of this study is to evaluate the safety and efficacy of Navlimetostat (BMS-986504) monotherapy or in combination with Izalontamab Brengitecan in participants with advanced or metastatic Non-small Cell Lung Cancer (NSCLC) with homozygous MTAP deletion or MTAP loss after progression on prior therapies."
+    },
+    "conditionsModule": {
+     "conditions": [
+      "Carcinoma, Non-Small-Cell Lung"
+     ]
+    },
+    "designModule": {
+     "studyType": "INTERVENTIONAL",
+     "phases": [
+      "PHASE2"
+     ],
+     "enrollmentInfo": {
+      "count": 182
+     }
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "BMS-986504"
+      },
+      {
+       "type": "DRUG",
+       "name": "Izalontamab Brengitecan"
+      }
+     ]
+    },
+    "eligibilityModule": {
+     "eligibilityCriteria": "Inclusion Criteria\n\n* Histologically confirmed diagnosis of NSCLC and homozygous MTAP deletion detected in tumor tissue and willingness to provide archival/fresh samples at screening for central MTAP status confirmation.\n* Advanced or metastatic NSCLC not amenable to curative therapies after progression on prior therapies at the time of enrollment (based on the American Joint Committee on Cancer, Ninth Edition).\n* At least 1 measurable lesion as per RECIST v1.1.\n* Documented radiographic disease progression on or after the most recent line of treatment.\n* Eastern Cooperative Oncology Group (ECOG) performance status of 0-1.\n* Participant must be ≥ 18 years of age (or the legal age of consent in the jurisdiction in which the study is taking place) at the time of signing the ICF.\n* Capability to swallow tablets intact (without chewing or crushing).\n* For combination arms\n\n  1. Participants must have documented evidence of EGFR status.\n  2. Participants with EGFR mutant or wild type NSCLC are allowed.\n\nExclusion Criteria\n\n* Active brain metastases or carcinomatous meningitis.\n* History of gastrointestinal disease or other gastrointestinal conditions (eg, uncontrolled nausea, vomiting, malabsorption syndrome) likely to alter absorption of study treatment or result in inability to swallow oral medications.\n* Prior treatment with a PRMT5 or MAT2A inhibitor.\n* Known severe hypersensitivity to study treatment and/or any of its excipients.\n* For combination arms\n\n  a. Prior therapy with iza-bren or any other antibody and/or ADC targeting EGFR and/or HER3 or containing a topoisomerase 1 inhibitor payload, except amivantamab.\n* Other protocol-defined inclusion/exclusion criteria apply.",
+     "healthyVolunteers": false,
+     "sex": "ALL",
+     "minimumAge": "18 Years",
+     "stdAges": [
+      "ADULT",
+      "OLDER_ADULT"
+     ]
+    },
+    "contactsLocationsModule": {
+     "centralContacts": [
+      {
+       "name": "Central Contact 0",
+       "role": "CONTACT",
+       "phone": "555-0100",
+       "email": "contact0@example.org",
+       "phoneExt": "7"
+      },
+      {
+       "name": "Central Contact 1",
+       "role": "CONTACT"
+      }
+     ],
+     "locations": [
+      {
+       "facility": "Local Institution - 0088",
+       "status": "COMPLETED",
+       "city": "Anchorage",
+       "state": "Alaska",
+       "zip": "99508",
+       "country": "United States",
+       "geoPoint": {
+        "lat": 61.21806,
+        "lon": -149.90028
+       }
+      },
+      {
+       "facility": "Local Institution - 0097",
+       "status": "COMPLETED",
+       "city": "Adelaide",
+       "state": "South Australia",
+       "zip": "5000",
+       "country": "Australia",
+       "geoPoint": {
+        "lat": -34.92866,
+        "lon": 138.59863
+       }
+      },
+      {
+       "facility": "Dana-Farber Cancer Institute",
+       "status": "RECRUITING",
+       "city": "Boston",
+       "state": "Massachusetts",
+       "zip": "02215",
+       "country": "United States",
+       "contacts": [
+        {
+         "name": "Site Contact 1",
+         "role": "CONTACT",
+         "phone": "555-0101",
+         "phoneExt": "42"
+        }
+       ],
+       "geoPoint": {
+        "lat": 42.35843,
+        "lon": -71.05977
+       }
+      },
+      {
+       "facility": "Dana-Farber Cancer Institute",
+       "status": "RECRUITING",
+       "city": "Boston",
+       "state": "Massachusetts",
+       "zip": "02215",
+       "country": "United States",
+       "contacts": [
+        {
+         "name": "Site Contact 2",
+         "role": "CONTACT",
+         "phone": "555-0102"
+        }
+       ],
+       "geoPoint": {
+        "lat": 42.35843,
+        "lon": -71.05977
+       }
+      },
+      {
+       "facility": "Karmanos Cancer Institute",
+       "status": "RECRUITING",
+       "city": "Detroit",
+       "state": "Michigan",
+       "zip": "48201",
+       "country": "United States",
+       "contacts": [
+        {
+         "name": "Site Contact 3",
+         "role": "CONTACT",
+         "phone": "555-0103"
+        }
+       ],
+       "geoPoint": {
+        "lat": 42.33143,
+        "lon": -83.04575
+       }
+      },
+      {
+       "facility": "Washington University School of Medicine",
+       "status": "RECRUITING",
+       "city": "St Louis",
+       "state": "Missouri",
+       "zip": "63110",
+       "country": "United States",
+       "geoPoint": {
+        "lat": 38.62727,
+        "lon": -90.19789
+       }
+      },
+      {
+       "facility": "Memorial Sloan Kettering Cancer Center",
+       "city": "New York",
+       "state": "New York",
+       "zip": "10065",
+       "country": "United States",
+       "contacts": [
+        {
+         "name": "Site Contact 4",
+         "role": "CONTACT",
+         "phone": "555-0104"
+        }
+       ],
+       "geoPoint": {
+        "lat": 40.71427,
+        "lon": -74.00597
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "protocolSection": {
+    "identificationModule": {
+     "nctId": "NCT07063745",
+     "briefTitle": "A Study to Compare the Combination of Navlimetostat (BMS-986504) With Pembrolizumab and Chemotherapy Versus Placebo Plus Pembrolizumab and Chemotherapy in First-line Metastatic Non-small Cell Lung Cancer Participants With Homozygous MTAP Deletion",
+     "officialTitle": "A Randomized Phase 2/3 Study of Navlimetostat (BMS-986504) in Combination With Pembrolizumab and Chemotherapy Versus Placebo Plus Pembrolizumab and Chemotherapy in First-line Metastatic Non-small Cell Lung Cancer Participants With Homozygous MTAP Deletion"
+    },
+    "statusModule": {
+     "overallStatus": "RECRUITING",
+     "startDateStruct": {
+      "date": "2026-01-02"
+     },
+     "primaryCompletionDateStruct": {
+      "date": "2031-08-12"
+     },
+     "lastUpdatePostDateStruct": {
+      "date": "2026-09-23"
+     }
+    },
+    "sponsorCollaboratorsModule": {
+     "leadSponsor": {
+      "name": "Bristol-Myers Squibb"
+     }
+    },
+    "descriptionModule": {
+     "briefSummary": "The purpose of this study is to compare the clinical benefit of the combination of Navlimetostat (BMS-986504) (a selective MTA-cooperative inhibitor of PRMT5) plus pembrolizumab and chemotherapy versus placebo plus pembrolizumab and chemotherapy in first-line metastatic non-small cell lung cancer participants with homozygous MTAP deletion"
+    },
+    "conditionsModule": {
+     "conditions": [
+      "Metastatic Non-small Cell Lung Cancer With MTAP Deletion"
+     ],
+     "keywords": [
+      "PRMT5",
+      "Lung cancer",
+      "NSCLC",
+      "MTAP",
+      "CDKN2A",
+      "MRTX1719",
+      "First-line",
+      "Navlimetostat"
+     ]
+    },
+    "designModule": {
+     "studyType": "INTERVENTIONAL",
+     "phases": [
+      "PHASE2",
+      "PHASE3"
+     ],
+     "enrollmentInfo": {
+      "count": 590
+     }
+    },
+    "armsInterventionsModule": {
+     "interventions": [
+      {
+       "type": "DRUG",
+       "name": "BMS-986504"
+      },
+      {
+       "type": "DRUG",
+       "name": "Pembrolizumab"
+      },
+      {
+       "type": "OTHER",
+       "name": "Placebo"
+      },
+      {
+       "type": "DRUG",
+       "name": "Cisplatin"
+      },
+      {
+       "type": "DRUG",
+       "name": "Carboplatin"
+      },
+      {
+       "type": "DRUG",
+       "name": "Pemetrexed"
+      },
+      {
+       "type": "DRUG",
+       "name": "Paclitaxel"
+      },
+      {
+       "type": "DRUG",
+       "name": "Nab-paclitaxel"
+      }
+     ]
+    },
+    "eligibilityModule": {
+     "eligibilityCriteria": "Inclusion Criteria\n\n* Participants must have Metastatic (Stage IV or recurrent) non-small cell lung cancer (NSCLC) (as defined by the American Joint Committee on Cancer, Ninth Edition) with no prior systemic anti-cancer therapy for metastatic disease.\n* Participants must have histologically confirmed diagnosis of NSCLC and homozygous methylthioadenosine phosphorylase (MTAP) deletion or MTAP loss.\n* Participants must have an Eastern Cooperative Oncology Group (ECOG) performance status of 0-1.\n* Participants must have at least 1 measurable lesion as per RECIST v1.1.\n\nExclusion Criteria\n\n* Nonsquamous participants must not have documented targetable oncogenic mutation or actionable genetic alterations (AGAs) for which there is a standard of care (SoC) available as first-line (1L) therapy.\n* Participants must not have symptomatic brain metastases or spinal cord compression.\n* Participants must not have any prior systemic therapy (chemotherapy, immunotherapy, targeted therapy, or biological therapy) for metastatic non-small cell lung cancer (mNSCLC).\n\nNote: One cycle of SoC treatment prior to randomization will be allowed for participants who require immediate treatment if clinically indicated.\n\n* Participants must not have any known or suspected impairment of gastrointestinal function that may prohibit the ability to absorb or swallow an oral medication without chewing or crushing.\n* Other protocol-defined Inclusion/Exclusion criteria apply.",
+     "healthyVolunteers": false,
+     "sex": "ALL",
+     "minimumAge": "18 Years",
+     "stdAges": [
+      "ADULT",
+      "OLDER_ADULT"
+     ]
+    },
+    "contactsLocationsModule": {
+     "centralContacts": [
+      {
+       "name": "Central Contact 0",
+       "role": "CONTACT",
+       "phone": "555-0100",
+       "email": "contact0@example.org"
+      },
+      {
+       "name": "Central Contact 1",
+       "role": "CONTACT"
+      }
+     ],
+     "locations": [
+      {
+       "facility": "Mayo Clinic in Arizona - Phoenix",
+       "status": "RECRUITING",
+       "city": "Phoenix",
+       "state": "Arizona",
+       "zip": "85054",
+       "country": "United States",
+       "contacts": [
+        {
+         "name": "Site Contact 5",
+         "role": "CONTACT",
+         "phone": "555-0105"
+        }
+       ],
+       "geoPoint": {
+        "lat": 33.44838,
+        "lon": -112.07404
+       }
+      },
+      {
+       "facility": "University of Arizona Cancer Center",
+       "status": "RECRUITING",
+       "city": "Tucson",
+       "state": "Arizona",
+       "zip": "85724",
+       "country": "United States",
+       "geoPoint": {
+        "lat": 32.22174,
+        "lon": -110.92648
+       }
+      },
+      {
+       "facility": "Highlands Oncology Group",
+       "status": "RECRUITING",
+       "city": "Springdale",
+       "state": "Arkansas",
+       "zip": "72762",
+       "country": "United States",
+       "contacts": [
+        {
+         "name": "Site Contact 6",
+         "role": "CONTACT",
+         "phone": "555-0106"
+        }
+       ],
+       "geoPoint": {
+        "lat": 36.18674,
+        "lon": -94.12881
+       }
+      },
+      {
+       "facility": "Local Institution - 0497",
+       "status": "NOT_YET_RECRUITING",
+       "city": "Los Alamitos",
+       "state": "California",
+       "zip": "90720",
+       "country": "United States",
+       "contacts": [
+        {
+         "name": "Site Contact 7",
+         "role": "CONTACT"
+        }
+       ],
+       "geoPoint": {
+        "lat": 33.80307,
+        "lon": -118.07256
+       }
+      },
+      {
+       "facility": "Local Institution - 0523",
+       "status": "NOT_YET_RECRUITING",
+       "city": "Tampa",
+       "state": "Florida",
+       "zip": "33612",
+       "country": "United States",
+       "contacts": [
+        {
+         "name": "Site Contact 8",
+         "role": "CONTACT"
+        }
+       ],
+       "geoPoint": {
+        "lat": 27.94752,
+        "lon": -82.45843
+       }
+      },
+      {
+       "facility": "Local Institution - 0444",
+       "status": "WITHDRAWN",
+       "city": "Los Angeles",
+       "state": "California",
+       "zip": "90067",
+       "country": "United States",
+       "geoPoint": {
+        "lat": 34.05223,
+        "lon": -118.24368
+       }
+      },
+      {
+       "facility": "Local Institution - 0119",
+       "status": "COMPLETED",
+       "city": "Anchorage",
+       "state": "Alaska",
+       "zip": "99508",
+       "country": "United States",
+       "geoPoint": {
+        "lat": 61.21806,
+        "lon": -149.90028
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

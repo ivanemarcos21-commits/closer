@@ -1,0 +1,26 @@
+[theme]
+base = "light"
+# Serif for the title (a study information sheet), sans for the form.
+font = "'Source Sans 3':https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+headingFont = "'Source Serif 4':https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,560;8..60,640&display=swap"
+baseFontSize = 17
+headingFontSizes = ["2.45rem", "1.35rem", "1.12rem", "1.02rem", "0.95rem", "0.95rem"]
+headingFontWeights = [560, 560, 600, 600, 600, 600]
+baseRadius = "2px"
+
+[theme.light]
+primaryColor = "#1E4E78"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#172033"
+linkColor = "#1E4E78"
+borderColor = "#E4E7EB"
+showWidgetBorder = true
+
+[client]
+# Visitors are patients and families: never show them a Python traceback or a Deploy button.
+showErrorDetails = "none"
+toolbarMode = "viewer"
+
+[browser]
+gatherUsageStats = false
