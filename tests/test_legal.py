@@ -23,8 +23,8 @@ def test_the_full_notices_cover_the_limits_of_the_tool():
     medical = medical_document()
     privacy = privacy_document(False)
     terms = terms_document(None, None)
-    assert "not a medical device" in medical and "placebo" in medical
-    assert "not a HIPAA" in privacy and "18 or older" in privacy
+    assert "not a medical device" in medical and "placebo" in medical and "Draft for review" in medical
+    assert "under 13" in privacy and "not a HIPAA" in privacy and "18 or older" in privacy
     assert "European Economic Area" not in privacy_document(False)
     assert "European Economic Area" not in privacy_document(True)
     assert "not affiliated" in terms and "as-is" in terms

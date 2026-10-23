@@ -26,7 +26,7 @@ from closer.config import Settings
 from closer.llm import LLMError, create_llm
 from closer.net import SearchBudget
 from closer.pipeline import find_trials
-from closer.legal import AGREEMENT_REQUIRED, CONSENT_LABEL
+from closer.legal import AGREEMENT_REQUIRED, CONSENT_LABEL, MEDICAL_BANNER
 from closer.profile import NoConditionError
 from closer.text import escape_md, find_personal_details
 from closer.ui import EXAMPLES, render_report
@@ -132,6 +132,7 @@ def render_header(settings: Settings) -> None:
         "Describe the illness in everyday words. Closer looks up recruiting studies on "
         "[ClinicalTrials.gov](https://clinicaltrials.gov) and shows who to call."
     )
+    st.info(MEDICAL_BANNER, icon=":material/info:")
 
 
 def render_setup_help() -> None:

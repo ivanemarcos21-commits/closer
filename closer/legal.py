@@ -11,9 +11,9 @@ from __future__ import annotations
 from .text import escape_link_text, escape_md, mailto_url
 
 MEDICAL_BANNER = (
-    "**Information only, not medical advice.** Closer can't say whether you qualify and doesn't "
-    "recommend any study. Please talk with your doctor. In an emergency, call your local "
-    "emergency number."
+    "**Information only, not medical advice.** Closer cannot say whether anyone qualifies and does "
+    "not recommend a study or a treatment. Only an adult may use this page. In an emergency, call "
+    "your local emergency number. Do not wait for a search."
 )
 
 _PRIVACY_LEAD = "**Don't type names, birth dates, addresses or ID numbers.** "
@@ -28,7 +28,11 @@ _PRIVACY_ZDR = (
     "train its models, and Zero Data Retention is turned on, so Groq does not keep the messages."
 )
 
-CONSENT_LABEL = "I am 18 or older, and I agree to the notices at the bottom of this page."
+CONSENT_LABEL = (
+    "I am 18 or older. I am not asking a child to use this page. I understand this is not medical "
+    "advice or a decision about joining a study, and that the description is sent to Groq and the "
+    "diagnosis and place are sent to ClinicalTrials.gov."
+)
 
 BEFORE_YOU_CALL = (
     "**Before you call:** joining a study is your choice, and you can leave at any time. Studies "
@@ -84,9 +88,15 @@ The AI can misread your description or a study's rules, in either direction. A s
 not a statement that you are eligible. Recruiting status and contact details come from the
 registry and can be out of date. Call to confirm.
 
-Closer reads only a limited number of studies (20 by default). It does not list every study, and
-it does not cover expanded-access (compassionate use) programs or studies that are not on
-ClinicalTrials.gov.
+Closer reads a limited number of studies. This form starts at 10, and you can choose 20 or 30
+under More options. It does not list every study, and it does not cover expanded-access
+(compassionate use) programs or studies that are not on ClinicalTrials.gov.
+
+##### Draft for review
+
+This copy is a draft information sheet. It is not offered as medical care. Do not use it to
+decide on treatment or on joining a study until you have also talked with your own doctor. The
+person who runs this copy is having the page reviewed before treating it as ready for the public.
 """
 
 
@@ -104,8 +114,10 @@ def privacy_document(zero_retention: bool) -> str:
     return f"""\
 ##### Who may use this page
 
-This page is for adults 18 or older. An adult may use it to look for a study for a child or for
-another person they care for. Do not ask a child to type their own story here.
+This page is for adults 18 or older. It is not for children, and it is not for anyone under 13.
+An adult may use it to look for a study for a child or for another person they care for, without
+typing that person's name. Do not ask a child to type their own story here. If you are under 18,
+do not use this page.
 
 ##### What you are asked for
 
@@ -114,7 +126,8 @@ with a sex limit (studies usually mean sex recorded at birth). The place is used
 with a nearby open site first. It does not hide studies that run somewhere else.
 
 Do not type names, birth dates, street addresses, phone numbers, email addresses, medical-record
-numbers, insurance numbers, or government ID numbers.
+numbers, insurance numbers, or government ID numbers. Checking the box above is your permission
+to send that description for this search only. Closer does not publish what you type.
 
 ##### Where that text goes
 
@@ -153,8 +166,9 @@ def terms_document(operator_name: str | None, operator_email: str | None) -> str
 ##### Using Closer
 
 You may use Closer to read public clinical-trial listings and to decide whom you might call.
-You may not use it for an emergency, to collect other people's identity documents, or to present
-its results as proof that someone qualifies for a study.
+You may not use the results as proof that someone qualifies, as a treatment recommendation, or
+as a substitute for a doctor. You may not use it for an emergency, to collect other people's
+identity documents, or to ask a child to use the page.
 
 You must be 18 or older. You are responsible for what you type. If you describe someone else,
 type only what you need for a search, and leave out their name and contact details.
@@ -206,9 +220,10 @@ be wrong. If you are unsure, ask your doctor.
 
 ##### What this page does not cover
 
-It reads only a few studies (20 by default) out of what may be hundreds, and it links to the full
-ClinicalTrials.gov search for the rest. It does not cover expanded-access programs or studies that
-are not listed on ClinicalTrials.gov.
+It reads a limited number of studies. This form starts at 10, and you can choose 20 or 30. It
+links to the full ClinicalTrials.gov search for the rest. It does not cover expanded-access
+programs or studies that are not listed on ClinicalTrials.gov. The AI only sorts public
+listings. A person, with their doctor and the study team, decides whether to call or join.
 """
 
 

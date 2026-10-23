@@ -39,10 +39,9 @@ EXAMPLES: dict[str, str] = {
         "His first round of chemotherapy didn't work and the latest scan shows the tumor grew. "
         "He is still active and walks every day."
     ),
-    "Teen with type 1 diabetes": (
-        "My 14-year-old daughter was diagnosed with type 1 diabetes four months ago. She uses an "
-        "insulin pump and we would like to find studies that try to protect the insulin her body "
-        "still makes."
+    "Adult with type 1 diabetes": (
+        "I am 34 and was diagnosed with type 1 diabetes ten years ago. I use an insulin pump. "
+        "I want to see studies about protecting the insulin my body still makes."
     ),
     "Glioblastoma came back": (
         "My mother is 58. She had surgery, radiation and temozolomide for glioblastoma 14 months "

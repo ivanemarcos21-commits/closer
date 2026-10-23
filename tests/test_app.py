@@ -159,7 +159,7 @@ def test_without_an_api_key_searching_is_switched_off_and_the_owner_is_told_why(
 
 def test_an_example_fills_in_the_story(with_key):
     at = new_app().run()
-    at.pills(key="example").set_value("Teen with type 1 diabetes").run()
+    at.pills(key="example").set_value("Adult with type 1 diabetes").run()
     assert "type 1 diabetes" in at.text_area(key="story").value
     assert at.pills(key="example").value is None  # ready to be picked again
 
