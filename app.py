@@ -7,6 +7,7 @@ Deploy:       Streamlit Community Cloud (main file: app.py; add GROQ_API_KEY und
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -56,8 +57,9 @@ def load_settings() -> Settings:
 
 
 @st.cache_resource(show_spinner=False)
-def get_registry() -> ClinicalTrialsClient:
-    return ClinicalTrialsClient()
+def get_registry() -> "CachedRegistry":
+    """One shared registry cache per server. Results stay in memory, so nothing is pickled."""
+    return CachedRegistry()
 
 
 @st.cache_resource(show_spinner=False)
@@ -71,20 +73,21 @@ def get_budget(per_hour: int) -> SearchBudget:
     return SearchBudget(per_hour)
 
 
-@st.cache_data(ttl=900, max_entries=256, show_spinner=False)
-def _search_cached(
-    condition: str | None, terms: str | None, location: str | None, statuses: tuple[str, ...], page_size: int
-) -> SearchPage:
-    return get_registry().search(
-        condition=condition, terms=terms, location=location, statuses=statuses, page_size=page_size
-    )
-
-
 class CachedRegistry:
     """Same ``search`` interface as ``ClinicalTrialsClient``, remembering identical recent queries.
 
     The cache key is the search terms only (a diagnosis and a place), never the patient's story.
+    Results stay on this object. ``st.cache_data`` would pickle them, and that pickle fails for
+    these records.
     """
+
+    _TTL_SECONDS = 900
+    _MAX_ENTRIES = 256
+
+    def __init__(self) -> None:
+        self._client = ClinicalTrialsClient()
+        self._lock = threading.Lock()
+        self._cache: dict[tuple[Any, ...], tuple[float, SearchPage]] = {}
 
     def search(
         self,
@@ -95,7 +98,20 @@ class CachedRegistry:
         statuses: Any = OPEN_STATUSES,
         page_size: int = 25,
     ) -> SearchPage:
-        return _search_cached(condition, terms, location, tuple(statuses), page_size)
+        key = (condition, terms, location, tuple(statuses), int(page_size))
+        now = time.monotonic()
+        with self._lock:
+            hit = self._cache.get(key)
+            if hit is not None and now - hit[0] < self._TTL_SECONDS:
+                return hit[1]
+        page = self._client.search(
+            condition=condition, terms=terms, location=location, statuses=statuses, page_size=page_size
+        )
+        with self._lock:
+            self._cache[key] = (time.monotonic(), page)
+            while len(self._cache) > self._MAX_ENTRIES:
+                self._cache.pop(next(iter(self._cache)))
+        return page
 
 
 # --------------------------------------------------------------------------- page
@@ -275,7 +291,7 @@ def handle_submit(settings: Settings, inputs: SearchInputs) -> None:
             report = find_trials(
                 inputs.story,
                 llm=get_llm(settings),
-                registry=CachedRegistry(),
+                registry=get_registry(),
                 settings=settings,
                 age_years=inputs.age,
                 sex=inputs.sex,
@@ -331,4 +347,5 @@ def main() -> None:
     render_footer(settings)
 
 
-main()
+if __name__ == "__main__":
+    main()

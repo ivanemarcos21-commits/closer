@@ -73,6 +73,24 @@ def report_for(make_trial, make_site, **match_fields) -> MatchReport:
 # --------------------------------------------------------------------------- the page itself
 
 
+def test_a_repeated_registry_query_is_remembered_without_pickling():
+    from app import CachedRegistry
+    from closer.clinicaltrials import SearchPage
+
+    calls = []
+
+    class FakeClient:
+        def search(self, **kwargs):
+            calls.append(kwargs)
+            return SearchPage(trials=[], total_count=3)
+
+    registry = CachedRegistry()
+    registry._client = FakeClient()
+    assert registry.search(condition="Lung cancer").total_count == 3
+    assert registry.search(condition="Lung cancer").total_count == 3
+    assert len(calls) == 1
+
+
 def test_page_renders_with_safety_and_privacy_copy(with_key):
     at = new_app().run()
     assert not at.exception
