@@ -103,7 +103,10 @@ def print_report(report: MatchReport) -> None:
     total = f" (of {report.total_available} recruiting)" if report.total_available else ""
     print(f"Checked {report.candidates_checked} studies{total}.")
     if report.location_relaxed:
-        print(f"No recruiting study had an open site in '{report.profile.location}'; searched everywhere.")
+        print(
+            f"No recruiting study we found has an open site in '{report.profile.location}'. "
+            "Studies in other places are listed below."
+        )
     for warning in report.warnings:
         print(f"WARNING: {warning}")
     print()

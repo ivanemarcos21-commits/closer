@@ -117,11 +117,11 @@ def gather_candidates(
 
     place = registry_location(profile.location)
     local: list[list[Trial]] = []
-    relaxed = False
+    place_known = False
     if place:
         try:
             local, _ = _run_plans(registry, profile.searches, place, statuses, limit)
-            relaxed = not any(local)
+            place_known = True
         except ClinicalTrialsError:  # an odd place or a hiccup: fall back to the unranked list
             log.warning("The place-restricted search failed; showing studies from everywhere")
             local = []
@@ -143,7 +143,18 @@ def gather_candidates(
         # they get the AI's limited reading slots first.
         candidates.sort(key=lambda t: 0 if select_sites(t, profile.location).nearby_count else 1)
 
-    return Candidates(trials=candidates[:limit], total_available=total, location_relaxed=relaxed)
+    shown = candidates[:limit]
+    # An empty location search means nothing was listed there. A search that only comes back
+    # with closed sites, or sites in some other place, means the same thing. Studies with no
+    # site list at all are left alone: we cannot tell where they run.
+    relaxed = False
+    if place_known:
+        local_trials = [trial for group in local for trial in group]
+        saw_sites = any(trial.sites for trial in local_trials)
+        open_there = any(select_sites(trial, profile.location).nearby_count for trial in shown)
+        relaxed = (not local_trials) or (saw_sites and not open_there)
+
+    return Candidates(trials=shown, total_available=total, location_relaxed=relaxed)
 
 
 def rank_matches(matches: Sequence[TrialMatch], *, has_location: bool) -> list[TrialMatch]:

@@ -179,6 +179,24 @@ def test_the_green_check_is_not_used_for_a_study_the_ai_merely_could_not_rule_ou
     assert "green-badge" not in text and "Likely match" not in text
 
 
+def test_a_place_with_no_open_site_is_named_and_other_places_are_still_shown(with_key, monkeypatch, make_trial, make_site):
+    report = report_for(make_trial, make_site)
+    report.profile.location = "Portland, Oregon"
+    report.location_relaxed = True
+    report.matches[0].nearby_site_count = 0
+    report.matches[0].sites = [make_site(city="Seattle", state="Washington")]
+    monkeypatch.setattr("closer.pipeline.find_trials", lambda *a, **k: report)
+    at = submit(new_app().run())
+    info = " ".join(el.value for el in at.info)
+    text = page_text(at)
+    assert "No recruiting study we found has an open site in Portland, Oregon" in info
+    assert "other places" in info
+    assert "A study of a new lung cancer drug" in text
+    captions = " ".join(el.value for el in at.caption)
+    assert "No open site in Portland, Oregon" in captions
+    assert "another place" in captions
+
+
 def test_observational_studies_say_so_and_unhelpful_phase_labels_are_hidden(with_key, monkeypatch, make_trial, make_site):
     report = report_for(make_trial, make_site)
     report.matches[0].trial.study_type = "OBSERVATIONAL"

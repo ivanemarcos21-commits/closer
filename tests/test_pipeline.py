@@ -163,6 +163,22 @@ class TestPlaceRanksButNeverFilters:
         )
         assert got.location_relaxed and [t.nct_id for t in got.trials] == [nct(1)]
 
+    def test_a_closed_site_at_the_place_still_counts_as_no_open_study(self, make_trial, make_site):
+        closed = make_trial(nct(1), sites=[make_site(city="Portland", state="Oregon", status="COMPLETED")])
+        elsewhere = make_trial(nct(2), sites=[make_site(city="Seattle", state="Washington")])
+
+        def handler(location=None, **_):
+            return SearchPage([closed], 1) if location else SearchPage([elsewhere], 8)
+
+        got = gather_candidates(
+            FakeRegistry(handler),
+            lung_profile([BROAD], location="Portland, Oregon"),
+            statuses=("RECRUITING",),
+            limit=5,
+        )
+        assert got.location_relaxed
+        assert [t.nct_id for t in got.trials] == [nct(1), nct(2)]
+
     @pytest.mark.parametrize(
         "failure", [ClinicalTrialsRejectedError("bad place"), ClinicalTrialsError("not responding")]
     )

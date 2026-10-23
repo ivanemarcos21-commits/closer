@@ -183,7 +183,8 @@ def _search_form(settings: Settings) -> tuple[bool, SearchInputs]:
         st.caption(
             "Enter the patient's details, not yours. Age and sex are only used to skip studies "
             "with age or sex limits (studies usually mean sex at birth). Studies with an open "
-            "site in the place you give are shown first."
+            "site in the city, state, or country you give are shown first. If none are open "
+            "there, studies in other places are still shown."
         )
         with st.expander("More options"):
             include_soon = st.checkbox("Include studies that open soon", value=False)

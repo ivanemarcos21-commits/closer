@@ -144,7 +144,9 @@ def _render_where(match: TrialMatch, location: str | None) -> None:
     if match.sites:
         st.markdown("**Sites listed as open**")
         if location and match.nearby_site_count == 0:
-            st.caption(f"No open site listed in {escape_md(location)}. Open sites elsewhere:")
+            st.caption(
+                f"No open site in {escape_md(location)}. This study is in another place:"
+            )
         for site in match.sites:
             st.markdown(site_markdown(site))
         extra = match.open_site_count - len(match.sites)
@@ -259,8 +261,10 @@ def render_report(report: MatchReport) -> None:
         st.warning(escape_md(warning), icon=":material/warning:")
     if report.location_relaxed and location:
         st.info(
-            f"No recruiting study has an open site matching {escape_md(location)}, so these come "
-            "from everywhere. Many studies accept patients who travel; call to ask.",
+            f"No recruiting study we found has an open site in {escape_md(location)}. "
+            "The studies below are in other places, in case traveling is possible. "
+            "Call and ask whether they accept patients from elsewhere. A site can be missing "
+            "from the registry, so this is not proof that no study exists there.",
             icon=":material/travel_explore:",
         )
 
