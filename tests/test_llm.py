@@ -146,6 +146,23 @@ def test_daily_quota_fails_at_once_without_retrying():
     assert len(calls) == 1 and sleeps == []
 
 
+def test_the_daily_token_cap_message_is_the_one_visitors_see():
+    def handler(request):
+        return httpx.Response(
+            429,
+            json=error_reply(
+                "Rate limit reached for model on tokens per day (TPD): Limit 200000, Used 198966."
+            ),
+        )
+
+    llm, sleeps = make_groq(handler)
+    with pytest.raises(LLMError) as caught:
+        ask(llm)
+    assert caught.value.kind == "quota_daily"
+    assert "tomorrow" in caught.value.user_message
+    assert sleeps == []
+
+
 def test_per_minute_limit_waits_for_the_delay_google_asks_for():
     calls = []
 

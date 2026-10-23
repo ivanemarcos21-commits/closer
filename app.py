@@ -231,8 +231,11 @@ def explain(exc: BaseException) -> str:
     """A message a worried visitor can act on. Never includes their own text or operator advice."""
     if isinstance(exc, NoConditionError):
         return f"{exc} If you need urgent help, call your local emergency number."
-    if isinstance(exc, LLMError):
-        return exc.user_message
+    if isinstance(exc, LLMError) or type(exc).__name__ == "LLMError":
+        # Streamlit can reload the app without reloading this class, so isinstance may miss it.
+        message = getattr(exc, "user_message", None)
+        if isinstance(message, str) and message.strip():
+            return message
     if isinstance(exc, ClinicalTrialsRejectedError):
         return (
             "We couldn't search ClinicalTrials.gov with that wording. Try describing the "

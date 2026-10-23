@@ -91,6 +91,23 @@ def test_a_repeated_registry_query_is_remembered_without_pickling():
     assert len(calls) == 1
 
 
+def test_an_ai_error_is_explained_even_if_its_class_was_reloaded():
+    class LLMError(Exception):
+        def __init__(self) -> None:
+            super().__init__("operator detail the visitor must not see")
+
+        @property
+        def user_message(self) -> str:
+            return "Closer has used up its free AI limit for today. Please try again tomorrow."
+
+    from app import explain
+
+    message = explain(LLMError())
+    assert "tomorrow" in message
+    assert "operator detail" not in message
+    assert "unexpected" not in message
+
+
 def test_a_validation_error_asks_the_visitor_to_try_again():
     from pydantic import ValidationError
 
