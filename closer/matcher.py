@@ -21,6 +21,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic import ValidationError
+
 from .clinicaltrials import screen_demographics, select_sites
 from .display import format_age_range, format_phase, format_sex
 from .llm import FATAL_KINDS, LLMError, StructuredLLM
@@ -286,19 +288,25 @@ def assess_trials(
                         log.warning("AI batch failed with %s", type(exc).__name__)
                         warnings.setdefault("AI checking hit an unexpected problem.", None)
 
-                    verdicts = (
-                        {a.nct_id.strip().upper(): a for a in reversed(answer.assessments)}
-                        if answer
-                        else {}
-                    )
+                    verdicts: dict[str, TrialAssessment] = {}
+                    if answer is not None:
+                        for item in answer.assessments:
+                            nct_id = str(item.nct_id or "").strip().upper()
+                            if nct_id:
+                                verdicts[nct_id] = item
                     skipped = 0
                     for trial in batch:
                         assessment = verdicts.get(trial.nct_id)
-                        if assessment is None:
+                        try:
+                            if assessment is None:
+                                results[trial.nct_id] = _unchecked(trial, location)
+                                skipped += 1 if answer is not None else 0
+                            else:
+                                results[trial.nct_id] = _from_assessment(trial, assessment, location)
+                        except (ValidationError, TypeError, AttributeError):
+                            log.warning("AI answer for one study could not be used")
                             results[trial.nct_id] = _unchecked(trial, location)
-                            skipped += 1 if answer is not None else 0
-                        else:
-                            results[trial.nct_id] = _from_assessment(trial, assessment, location)
+                            skipped += 1
                     if skipped:
                         warnings.setdefault(
                             "The AI skipped some studies; they are listed as possible matches so "

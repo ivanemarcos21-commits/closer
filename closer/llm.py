@@ -281,7 +281,7 @@ def _error_from_response(response: httpx.Response) -> LLMError:
             f"Groq rejected the API key. Check GROQ_API_KEY (free keys: {API_KEY_URL}).",
             kind="auth",
         )
-    if code == 404 or ("model" in haystack and "not" in haystack):
+    if code == 404 or (code != 400 and _unknown_model(haystack)):
         return LLMError(
             f"Groq does not know that model name. Set GROQ_MODEL to a current model: {MODELS_DOC_URL}",
             kind="model",
@@ -306,6 +306,22 @@ def _error_from_response(response: httpx.Response) -> LLMError:
             return LLMError("Groq's answer did not match the expected format.", kind="bad_output")
         return LLMError(f"Groq rejected the request: {message[:200]}", kind="bad_request")
     return LLMError(f"Groq returned HTTP {code}.", kind="unknown")
+
+
+def _unknown_model(haystack: str) -> bool:
+    """True when Groq is saying the model name itself is unknown, not merely mentioning a model."""
+    return any(
+        phrase in haystack
+        for phrase in (
+            "does not exist",
+            "do not exist",
+            "unknown model",
+            "model not found",
+            "no such model",
+            "invalid model",
+            "unrecognized model",
+        )
+    )
 
 
 def _token_figures(message: str) -> tuple[int | None, int | None]:
@@ -355,9 +371,80 @@ def _parse_response(payload: Any, schema: type[T]) -> T:
     if not isinstance(text, str) or not text.strip():
         raise LLMError("Groq returned an empty answer.", kind="bad_output")
     try:
-        return schema.model_validate_json(_strip_json_fence(text))
-    except ValidationError as exc:
+        parsed = json.loads(_strip_json_fence(text))
+        return schema.model_validate(_coerce_payload(parsed))
+    except (ValidationError, json.JSONDecodeError) as exc:
         raise LLMError("Groq answered in an unexpected format.", kind="bad_output") from exc
+
+
+_STRING_LISTS = frozenset(
+    {
+        "biomarkers",
+        "prior_treatments",
+        "other_conditions",
+        "missing_info",
+        "reasons_for",
+        "reasons_against",
+        "to_confirm",
+    }
+)
+_ENUMS = {"sex": frozenset({"FEMALE", "MALE", "UNKNOWN"}), "verdict": frozenset({"YES", "MAYBE", "NO"})}
+
+
+def _coerce_payload(data: Any) -> Any:
+    """Tidy the small ways a model drifts from the schema, before Pydantic rejects the answer.
+
+    The patient's words are never rewritten here; only the shape of the model's JSON.
+    """
+    if isinstance(data, list):
+        return [_coerce_payload(item) for item in data]
+    if not isinstance(data, dict):
+        return data
+    tidied: dict[str, Any] = {}
+    for key, value in data.items():
+        if key in _ENUMS and isinstance(value, str):
+            upper = value.strip().upper()
+            value = upper if upper in _ENUMS[key] else value
+        elif key in _STRING_LISTS or key in {"searches", "assessments"}:
+            value = _coerce_list(key, value)
+        elif key == "extra_terms" and not isinstance(value, str):
+            if isinstance(value, list):
+                parts = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+                value = " OR ".join(parts) or None
+            else:
+                value = None
+        elif key == "age_years" and isinstance(value, str) and value.strip().isdigit():
+            value = int(value.strip())
+        elif key == "age_years" and isinstance(value, float) and value.is_integer():
+            value = int(value)
+        elif key in {"plain_summary", "summary", "primary_condition", "nct_id"} and value is None:
+            value = ""
+        if isinstance(value, (dict, list)):
+            value = _coerce_payload(value)
+        tidied[key] = value
+    return tidied
+
+
+def _coerce_list(key: str, value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value.strip() else []
+    if isinstance(value, dict):
+        value = [value]
+    if not isinstance(value, list):
+        return []
+    if key not in _STRING_LISTS:
+        return value
+    items: list[str] = []
+    for item in value:
+        if isinstance(item, str) and item.strip():
+            items.append(item.strip())
+        elif isinstance(item, dict):
+            text = item.get("text") or item.get("reason") or item.get("value")
+            if isinstance(text, str) and text.strip():
+                items.append(text.strip())
+    return items
 
 
 def _strip_json_fence(text: str) -> str:

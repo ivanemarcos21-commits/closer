@@ -245,6 +245,8 @@ def explain(exc: BaseException) -> str:
         )
     if isinstance(exc, (TimeoutError, ConnectionError, OSError, MemoryError)):
         return "The search was interrupted before it finished. Please wait a minute and try again."
+    if type(exc).__name__ == "ValidationError":
+        return "The AI helper gave an answer Closer couldn't use. Please try again."
     return f"Something unexpected went wrong ({type(exc).__name__}). Please try again in a moment."
 
 

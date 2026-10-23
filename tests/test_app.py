@@ -91,6 +91,19 @@ def test_a_repeated_registry_query_is_remembered_without_pickling():
     assert len(calls) == 1
 
 
+def test_a_validation_error_asks_the_visitor_to_try_again():
+    from pydantic import ValidationError
+
+    from app import explain
+    from closer.models import PatientProfile
+
+    with pytest.raises(ValidationError) as caught:
+        PatientProfile.model_validate({"age_years": "about sixty"})
+    message = explain(caught.value)
+    assert "couldn't use" in message
+    assert "about sixty" not in message
+
+
 def test_page_renders_with_safety_and_privacy_copy(with_key):
     at = new_app().run()
     assert not at.exception

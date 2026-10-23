@@ -177,6 +177,45 @@ def test_a_low_token_budget_pauses_before_the_next_call():
     assert ask(llm).ok and sleeps == [5.0]
 
 
+def test_a_sloppy_answer_is_tidied_instead_of_rejected():
+    payload = {
+        "assessments": [
+            {
+                "nct_id": "NCT00000001",
+                "plain_summary": "Tests a drug.",
+                "reasons_for": "stage matches",
+                "reasons_against": None,
+                "to_confirm": [],
+                "verdict": "yes",
+            }
+        ]
+    }
+    llm, _ = make_groq(lambda r: httpx.Response(200, json=groq_reply(json.dumps(payload))))
+    answer = llm.generate(system="s", prompt="p", schema=BatchAssessment)
+    assert answer.assessments[0].verdict == "YES"
+    assert answer.assessments[0].reasons_for == ["stage matches"]
+    assert answer.assessments[0].reasons_against == []
+
+
+def test_a_json_mismatch_is_not_treated_as_an_unknown_model():
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(
+                400,
+                json=error_reply(
+                    "The model did not match the schema. Failed to validate JSON. See 'failed_generation'."
+                ),
+            )
+        return httpx.Response(200, json=groq_reply('{"ok": true}'))
+
+    llm, sleeps = make_groq(handler)
+    assert ask(llm).ok
+    assert len(calls) == 2 and sleeps
+
+
 def test_a_request_bigger_than_the_token_limit_is_not_retried():
     calls = []
 
