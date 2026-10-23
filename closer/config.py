@@ -39,8 +39,8 @@ class Settings:
     operator_email: str | None = None
     llm_timeout_s: float = 60.0
     max_trials: int = 20  # studies the AI reads per search
-    batch_size: int = 5  # trials judged per Gemini request
-    max_workers: int = 3  # concurrent Gemini requests
+    batch_size: int = 2  # trials per Groq request; the free tier allows about 8,000 tokens a minute
+    max_workers: int = 1  # parallel requests trip that same per-minute limit
     story_max_chars: int = 4000
     searches_per_hour: int = 40  # app-wide cap, protects a shared key from abuse
 

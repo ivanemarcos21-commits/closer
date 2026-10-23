@@ -161,6 +161,42 @@ def test_per_minute_limit_waits_for_the_delay_google_asks_for():
     assert sleeps == [7.0]
 
 
+def test_a_request_bigger_than_the_token_limit_is_not_retried():
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        return httpx.Response(
+            413,
+            json=error_reply(
+                "Request too large for model on tokens per minute (TPM): Limit 8000, Requested 14951"
+            ),
+        )
+
+    llm, sleeps = make_groq(handler)
+    with pytest.raises(LLMError) as caught:
+        ask(llm)
+    assert caught.value.kind == "too_large"
+    assert "smaller pieces" in str(caught.value)
+    assert len(calls) == 1 and sleeps == []
+
+
+def test_a_json_validation_failure_is_retried():
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(
+                400, json=error_reply("Failed to validate JSON. See 'failed_generation' for more details.")
+            )
+        return httpx.Response(200, json=groq_reply('{"ok": true}'))
+
+    llm, sleeps = make_groq(handler)
+    assert ask(llm).ok
+    assert len(calls) == 2 and len(sleeps) == 1
+
+
 def test_overloaded_service_backs_off_and_then_gives_up():
     llm, sleeps = make_groq(
         lambda r: httpx.Response(503, json=error_reply("overloaded")),
@@ -319,6 +355,7 @@ def test_patients_never_see_setup_instructions():
         assert "isn't working right now" in message and "ClinicalTrials.gov" in message
     assert "tomorrow" in LLMError("x", kind="quota_daily").user_message
     assert "busy" in LLMError("x", kind="rate_limit").user_message
+    assert "too long" in LLMError("x", kind="too_large").user_message
     assert "plainer words" in LLMError("x", kind="blocked").user_message
 
 

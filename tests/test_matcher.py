@@ -309,6 +309,17 @@ class TestFailures:
         assert all(m.source == "unchecked" for m in outcome.matches)
         assert sum("free AI limit" in w for w in outcome.warnings) == 1  # reported once
 
+    def test_an_oversized_batch_is_split_and_still_judged(self, patient, make_trial, make_llm, verdict_answer):
+        def handler(prompt, **_):
+            if len(trial_ids(prompt)) > 1:
+                return LLMError("too big", kind="too_large")
+            return verdict_answer(prompt, default="YES", reasons_for=["Fits"])
+
+        trials = [make_trial(nct(i)) for i in (1, 2)]
+        outcome = assess_trials(make_llm(handler), patient, "s", trials, batch_size=2, max_workers=1)
+        assert [m.source for m in outcome.matches] == ["ai", "ai"]
+        assert not any("interrupted" in w for w in outcome.warnings)
+
     def test_a_blocked_batch_does_not_stop_the_others(self, patient, make_trial, make_llm, verdict_answer):
         # Whether a safety filter fires depends on that batch's own text, so it will not repeat.
         def handler(prompt, **_):

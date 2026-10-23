@@ -51,6 +51,10 @@ _PATIENT_MESSAGES = {
         "plainer words."
     ),
     "bad_output": "The AI helper gave an answer Closer couldn't use. Please try again.",
+    "too_large": (
+        "Some study descriptions were too long to check in one pass. Those studies are listed "
+        "so you can read their criteria yourself."
+    ),
 }
 _PATIENT_DEFAULT = (
     "Closer's AI helper isn't working right now. That isn't something you did. "
@@ -257,9 +261,34 @@ def _error_from_response(response: httpx.Response) -> LLMError:
         )
     if code >= 500:
         return LLMError("Groq is temporarily overloaded.", kind="unavailable")
+    if code == 413 or "request too large" in haystack:
+        requested, limit = _token_figures(message)
+        if requested is None or limit is None or requested > limit:
+            return LLMError(
+                "The study text sent to Groq was larger than its per-minute token limit, so it "
+                "has to be checked in smaller pieces.",
+                kind="too_large",
+            )
+        return LLMError(
+            "Groq is receiving too many requests right now.",
+            kind="rate_limit",
+            retry_after=retry_after,
+        )
     if code == 400:
+        if "validate json" in haystack or "failed_generation" in haystack:
+            return LLMError("Groq's answer did not match the expected format.", kind="bad_output")
         return LLMError(f"Groq rejected the request: {message[:200]}", kind="bad_request")
     return LLMError(f"Groq returned HTTP {code}.", kind="unknown")
+
+
+def _token_figures(message: str) -> tuple[int | None, int | None]:
+    """Pull ``Requested`` and ``Limit`` out of a Groq token-limit error, when it includes them."""
+    requested = re.search(r"requested\s+(\d+)", message, flags=re.IGNORECASE)
+    limit = re.search(r"limit\s+(\d+)", message, flags=re.IGNORECASE)
+    return (
+        int(requested.group(1)) if requested else None,
+        int(limit.group(1)) if limit else None,
+    )
 
 
 def _retry_after_header(response: httpx.Response) -> float | None:

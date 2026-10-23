@@ -274,7 +274,7 @@ def test_studies_excluded_by_age_do_not_use_up_the_ais_reading_slots(settings, m
 
     report = find_trials("story", llm=llm, registry=registry, settings=settings, max_trials=3)
 
-    judging_prompt = llm.calls[-1]["prompt"]
+    judging_prompt = "\n".join(call["prompt"] for call in llm.calls if "trial id=" in call["prompt"])
     assert {nct(i) for i in range(7, 10)} == set(
         n for n in (nct(i) for i in range(1, 10)) if n in judging_prompt
     )  # all three eligible studies were read, none of the six excluded ones
