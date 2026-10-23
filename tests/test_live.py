@@ -33,7 +33,7 @@ def settings() -> Settings:
 @pytest.fixture()
 def needs_key(settings: Settings) -> None:
     if not settings.has_ai:
-        pytest.skip("no GEMINI_API_KEY configured")
+        pytest.skip("no GROQ_API_KEY configured")
 
 
 def test_registry_returns_recruiting_studies_with_criteria_and_contacts():

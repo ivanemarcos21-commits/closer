@@ -18,13 +18,14 @@ MEDICAL_BANNER = (
 
 _PRIVACY_LEAD = "**Don't type names, birth dates, addresses or ID numbers.** "
 _PRIVACY_TAIL = " Closer doesn't save it. The diagnosis and place also go to ClinicalTrials.gov."
-_PRIVACY_FREE = (
-    "Your text goes to Google's Gemini AI. On Google's free tier, Google may keep it, let its "
-    "staff read it, and use it to improve its products."
+_PRIVACY_LOGS = (
+    "Your text goes to Groq, the company that runs the AI. Groq says it does not use that text to "
+    "train its models. Unless Zero Data Retention is turned on, Groq may keep the text for up to "
+    "30 days to fix outages or check for misuse."
 )
-_PRIVACY_PAID = (
-    "Your text goes to Google's Gemini AI. Google doesn't use it to train its products, but may "
-    "keep it briefly to check for misuse."
+_PRIVACY_ZDR = (
+    "Your text goes to Groq, the company that runs the AI. Groq says it does not use that text to "
+    "train its models, and Zero Data Retention is turned on, so Groq does not keep the messages."
 )
 
 CONSENT_LABEL = "I am 18 or older, and I agree to the notices at the bottom of this page."
@@ -42,9 +43,9 @@ AGREEMENT_REQUIRED = (
 )
 
 
-def privacy_summary(paid_tier: bool) -> str:
-    """The short privacy text on the search page. It must match how the key is billed."""
-    return _PRIVACY_LEAD + (_PRIVACY_PAID if paid_tier else _PRIVACY_FREE) + _PRIVACY_TAIL
+def privacy_summary(zero_retention: bool) -> str:
+    """The short privacy text. It must match whether Zero Data Retention is actually on."""
+    return _PRIVACY_LEAD + (_PRIVACY_ZDR if zero_retention else _PRIVACY_LOGS) + _PRIVACY_TAIL
 
 
 def medical_document() -> str:
@@ -89,23 +90,16 @@ ClinicalTrials.gov.
 """
 
 
-def privacy_document(paid_tier: bool) -> str:
-    google = (
-        "On the paid tier configured for this copy, Google says it does not use that text to train "
-        "its products. Google may still keep it briefly to check for misuse."
-        if paid_tier
+def privacy_document(zero_retention: bool) -> str:
+    groq = (
+        "Zero Data Retention is turned on for this copy. Groq says it does not keep the messages "
+        "and does not use them to train its models."
+        if zero_retention
         else
-        "This copy uses Google's free tier. On that tier Google may keep what you type, let its "
-        "staff read it, and use it to improve Google's products. Google's terms also say not to "
-        "send personal or sensitive information to the free tier. Do not put names, birth dates, "
-        "addresses, phone numbers, email addresses, medical-record numbers, or ID numbers in the box."
-    )
-    regions = (
-        ""
-        if paid_tier
-        else
-        "\n\nGoogle's unpaid Gemini terms restrict public use from the European Economic Area, "
-        "the United Kingdom, and Switzerland. Do not use a public unpaid copy of Closer from those places.\n"
+        "This copy has not turned on Zero Data Retention. Groq says it does not use the text to "
+        "train its models, but it may keep the text for up to 30 days to fix outages or check for "
+        "misuse. Do not put names, birth dates, addresses, phone numbers, email addresses, "
+        "medical-record numbers, or ID numbers in the box."
     )
     return f"""\
 ##### Who may use this page
@@ -124,8 +118,8 @@ numbers, insurance numbers, or government ID numbers.
 
 ##### Where that text goes
 
-1. **Google Gemini.** Your description is sent to Google's Gemini API so it can be turned into
-   medical search words and compared with each study's published rules. {google}
+1. **Groq.** Your description is sent to Groq's API so it can be turned into medical search words
+   and compared with each study's published rules. {groq}
 2. **ClinicalTrials.gov.** The diagnosis and the place are sent to the U.S. National Library of
    Medicine's public registry API. The registry's own privacy policy applies to that request.
 3. **This website's memory for the current visit.** The description stays in the browser session
@@ -145,11 +139,11 @@ invent contact details.
 
 Closer is not a doctor's office, health plan, or healthcare clearinghouse, and it is not a HIPAA
 business associate. Do not use it as a medical record or as a private message to a clinic.
-{regions}
+
 ##### Cookies
 
-The page uses a session cookie so it can remember this visit (for example, that you checked the
-agreement, and whether you chose Light or Dark). That cookie is not used to advertise to you.
+The page uses a session cookie so it can remember this visit, including that you checked the
+agreement. That cookie is not used to advertise to you.
 """
 
 
@@ -175,7 +169,7 @@ that a phone number works, or that any study is safe or appropriate for you.
 
 Study data comes from ClinicalTrials.gov, U.S. National Library of Medicine. Closer is an
 independent project. It is not affiliated with, endorsed by, or operated by the NLM, the NIH,
-or Google.
+or Groq.
 
 ##### The site can be turned off
 
@@ -192,9 +186,9 @@ def how_it_works() -> str:
 ##### What happens when you search
 
 1. You describe the situation in your own words and, if you want, add an age, sex, and place.
-2. Google's Gemini AI turns that into medical terms and search words.
+2. Groq's AI turns that into medical terms and search words.
 3. Closer searches ClinicalTrials.gov for studies that are recruiting.
-4. Simple rules skip studies whose published age or sex limits do not fit. Gemini reads the other
+4. Simple rules skip studies whose published age or sex limits do not fit. The AI reads the other
    rules of the studies that remain and sorts them.
 5. Names, phone numbers, emails, and addresses on this page are copied from ClinicalTrials.gov.
    The AI does not write them.
@@ -215,22 +209,6 @@ be wrong. If you are unsure, ask your doctor.
 It reads only a few studies (20 by default) out of what may be hundreds, and it links to the full
 ClinicalTrials.gov search for the rest. It does not cover expanded-access programs or studies that
 are not listed on ClinicalTrials.gov.
-"""
-
-
-def publisher_note() -> str:
-    return """\
-**Before you offer this site to the public**
-
-- Turn on billing for the Gemini key, then set `GEMINI_PAID_TIER=true`. On Google's free tier,
-  what people type may be kept, read by staff, and used to improve Google's products. The free
-  tier is not an acceptable setup for a public patient service.
-- These notices are plain language, not a lawyer's review. Have a lawyer read them for the place
-  you publish from.
-- Do not describe Closer as HIPAA-compliant, as medical care, or as an FDA-cleared product.
-- Set `OPERATOR_NAME` and `OPERATOR_EMAIL` so people can reach you about the website. Leave them
-  blank while you are only trying the site yourself. That address is for the website, not for
-  medical advice.
 """
 
 

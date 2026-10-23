@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 2: match a patient's story against live trials with Gemini.
+"""Phase 2: match a patient's story against live trials with Groq.
 
 Setup: put your free key in a .env file (see .env.example), then try:
 
@@ -49,7 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--criteria-file", help="Judge this one block of eligibility criteria instead of searching."
     )
-    parser.add_argument("--check", action="store_true", help="Test the Gemini key and model, then exit.")
+    parser.add_argument("--check", action="store_true", help="Test the Groq key and model, then exit.")
     return parser
 
 

@@ -3,7 +3,7 @@
 Two layers, cheapest first:
 
 1. Hard registry rules (age, sex) exclude trials with no AI call at all.
-2. Gemini reads each remaining trial's free-text criteria, a few trials per request to
+2. Groq reads each remaining trial's free-text criteria, a few trials per request to
    respect the free quota.
 
 The AI only ever *judges*. Every name, phone number and address shown to a patient comes

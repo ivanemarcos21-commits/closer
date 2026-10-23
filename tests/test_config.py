@@ -9,7 +9,7 @@ import pytest
 from closer import config
 from closer.config import DEFAULT_MODEL, Settings
 
-NAMES = ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_MODEL", "GEMINI_MATCH_MODEL", "GEMINI_PAID_TIER")
+NAMES = ("GROQ_API_KEY", "GROQ_MODEL", "GROQ_MATCH_MODEL", "GROQ_ZERO_RETENTION", "GEMINI_API_KEY")
 
 
 @pytest.fixture(autouse=True)
@@ -20,48 +20,48 @@ def clean_environment(monkeypatch):
 
 def test_defaults_when_nothing_is_set():
     settings = Settings.load(use_dotenv=False)
-    assert settings.gemini_api_key is None and not settings.has_ai
+    assert settings.groq_api_key is None and not settings.has_ai
     assert settings.model == DEFAULT_MODEL and settings.effective_match_model == DEFAULT_MODEL
-    assert settings.paid_tier is False
+    assert settings.zero_retention is False
 
 
 def test_environment_variables_are_read(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "  key-from-env  ")
-    monkeypatch.setenv("GEMINI_MODEL", "small")
-    monkeypatch.setenv("GEMINI_MATCH_MODEL", "big")
+    monkeypatch.setenv("GROQ_API_KEY", "  key-from-env  ")
+    monkeypatch.setenv("GROQ_MODEL", "small")
+    monkeypatch.setenv("GROQ_MATCH_MODEL", "big")
     settings = Settings.load(use_dotenv=False)
-    assert settings.gemini_api_key == "key-from-env" and settings.has_ai
+    assert settings.groq_api_key == "key-from-env" and settings.has_ai
     assert (settings.model, settings.effective_match_model) == ("small", "big")
 
 
-def test_google_api_key_is_accepted_as_a_fallback(monkeypatch):
-    monkeypatch.setenv("GOOGLE_API_KEY", "g-key")
-    assert Settings.load(use_dotenv=False).gemini_api_key == "g-key"
+def test_a_gemini_key_is_not_used(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "g-key")
+    assert Settings.load(use_dotenv=False).groq_api_key is None
 
 
 def test_a_blank_key_counts_as_no_key(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "   ")  # e.g. copied from .env.example unchanged
+    monkeypatch.setenv("GROQ_API_KEY", "   ")  # e.g. copied from .env.example unchanged
     assert not Settings.load(use_dotenv=False).has_ai
 
 
 def test_streamlit_secrets_fill_gaps_but_the_environment_wins(monkeypatch):
-    monkeypatch.setenv("GEMINI_MODEL", "from-env")
-    settings = Settings.load({"GEMINI_API_KEY": "from-secrets", "GEMINI_MODEL": "from-secrets"}, use_dotenv=False)
-    assert settings.gemini_api_key == "from-secrets" and settings.model == "from-env"
+    monkeypatch.setenv("GROQ_MODEL", "from-env")
+    settings = Settings.load({"GROQ_API_KEY": "from-secrets", "GROQ_MODEL": "from-secrets"}, use_dotenv=False)
+    assert settings.groq_api_key == "from-secrets" and settings.model == "from-env"
 
 
 def test_non_text_secret_values_do_not_crash():
-    assert Settings.load({"GEMINI_MODEL": 3}, use_dotenv=False).model == "3"  # e.g. an unquoted TOML number
+    assert Settings.load({"GROQ_MODEL": 3}, use_dotenv=False).model == "3"  # e.g. an unquoted TOML number
 
 
 @pytest.mark.parametrize(("raw", "expected"), [("true", True), ("1", True), ("YES", True), ("false", False), ("", False)])
-def test_paid_tier_flag(monkeypatch, raw, expected):
-    monkeypatch.setenv("GEMINI_PAID_TIER", raw)
-    assert Settings.load(use_dotenv=False).paid_tier is expected
+def test_zero_retention_flag(monkeypatch, raw, expected):
+    monkeypatch.setenv("GROQ_ZERO_RETENTION", raw)
+    assert Settings.load(use_dotenv=False).zero_retention is expected
 
 
 def test_the_api_key_never_appears_in_repr_or_str():
-    settings = Settings(gemini_api_key="super-secret-key")
+    settings = Settings(groq_api_key="super-secret-key")
     assert "super-secret-key" not in repr(settings) and "super-secret-key" not in f"{settings}"
 
 
@@ -70,17 +70,17 @@ def test_the_api_key_never_appears_in_repr_or_str():
 
 def test_the_dotenv_file_is_read(monkeypatch, tmp_path):
     env_file = tmp_path / ".env"
-    env_file.write_text("GEMINI_API_KEY=key-from-dotenv\nGEMINI_PAID_TIER=true\n", encoding="utf-8")
+    env_file.write_text("GROQ_API_KEY=key-from-dotenv\nGROQ_ZERO_RETENTION=true\n", encoding="utf-8")
     monkeypatch.setattr(config, "_ENV_FILE", env_file)
     settings = Settings.load()
-    assert settings.gemini_api_key == "key-from-dotenv" and settings.paid_tier
+    assert settings.groq_api_key == "key-from-dotenv" and settings.zero_retention
 
 
 def test_real_environment_variables_beat_the_dotenv_file(monkeypatch, tmp_path):
     env_file = tmp_path / ".env"
-    env_file.write_text("GEMINI_MODEL=from-dotenv\n", encoding="utf-8")
+    env_file.write_text("GROQ_MODEL=from-dotenv\n", encoding="utf-8")
     monkeypatch.setattr(config, "_ENV_FILE", env_file)
-    monkeypatch.setenv("GEMINI_MODEL", "from-shell")
+    monkeypatch.setenv("GROQ_MODEL", "from-shell")
     assert Settings.load().model == "from-shell"
 
 
@@ -95,7 +95,7 @@ def test_a_missing_dotenv_is_fine(monkeypatch, tmp_path):
 
 def test_a_dotenv_that_cannot_be_read_because_the_library_is_missing_is_reported(monkeypatch, tmp_path, caplog):
     env_file = tmp_path / ".env"
-    env_file.write_text("GEMINI_API_KEY=x\n", encoding="utf-8")
+    env_file.write_text("GROQ_API_KEY=x\n", encoding="utf-8")
     monkeypatch.setattr(config, "_ENV_FILE", env_file)
     monkeypatch.setitem(__import__("sys").modules, "dotenv", None)  # makes "import dotenv" fail
     with caplog.at_level(logging.WARNING, logger="closer.config"):

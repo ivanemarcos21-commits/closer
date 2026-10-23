@@ -8,10 +8,10 @@ You type something like *"My uncle has stage 3 lung cancer and the first chemoth
 
 ## How it works
 
-1. **Gemini** reads the story and extracts a diagnosis, age, sex, place, and extra search words.
+1. **Groq** reads the story and extracts a diagnosis, age, sex, place, and extra search words.
 2. **ClinicalTrials.gov** (the U.S. government's public registry, free API) is searched for recruiting studies. Place **ranks** results; it never hides studies that run elsewhere.
 3. Simple rules skip studies whose published age or sex limits clearly don't fit.
-4. Gemini reads each remaining study's eligibility text and returns **YES / MAYBE / NO** with reasons. Missing information is never treated as a no.
+4. Groq reads each remaining study's eligibility text and returns **YES / MAYBE / NO** with reasons. Missing information is never treated as a no.
 5. Names, phones, emails, and addresses come **only** from the registry. The AI never writes contact details.
 
 The UI labels a YES as **"Worth asking about"** — not "you qualify."
@@ -77,19 +77,19 @@ The live registry test has been run successfully. Live Gemini tests skip until `
 3. App → **Settings → Secrets**, paste:
 
    ```toml
-   GEMINI_API_KEY = "your-key"
+   GROQ_API_KEY = "your-key"
    ```
 
 4. Community Cloud should pick Python 3.12 from `.python-version`. If it doesn't, set 3.12 in the app's Python version setting.
 
 ### Before real patients use a public copy
 
-Google's **unpaid** Gemini tier may keep what people type, lets staff read it, and uses it to improve Google's products. Its terms say not to send personal or sensitive information on that tier. Closer is a hobby project, not a HIPAA covered entity.
+Groq says it does not train on what people type. Unless Zero Data Retention is turned on in the Groq console, Groq may keep that text for up to 30 days. Closer is a hobby project, not a HIPAA covered entity.
 
-For anything beyond a personal demo:
+For a public copy:
 
-1. Enable billing on the key's Google Cloud project (paid Gemini usage is not used for training; searches cost cents).
-2. Set `GEMINI_PAID_TIER=true` in `.env` or `GEMINI_PAID_TIER = "true"` in Streamlit secrets so the on-page privacy notice matches.
+1. In Groq, open Settings → Data Controls and turn on Zero Data Retention.
+2. Set `GROQ_ZERO_RETENTION=true` in `.env` or `GROQ_ZERO_RETENTION = "true"` in Streamlit secrets so the privacy notice matches.
 
 The app already warns visitors either way. Don't type names, birth dates, addresses, or ID numbers.
 

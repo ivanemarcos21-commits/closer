@@ -199,7 +199,7 @@ def test_without_a_location_the_registrys_own_order_is_kept_within_a_verdict(mak
 
 @pytest.fixture()
 def settings() -> Settings:
-    return Settings(gemini_api_key="test", model="profile-model", match_model="match-model", max_workers=2)
+    return Settings(groq_api_key="test", model="profile-model", match_model="match-model", max_workers=2)
 
 
 def scripted_llm(make_llm, verdict_answer, profile, verdicts=None):
@@ -316,7 +316,7 @@ def test_no_candidates_means_an_empty_report_and_no_judging_calls(settings, make
 
 
 def test_the_story_is_cut_to_the_configured_length(fixture_trials, make_llm, verdict_answer):
-    short = Settings(gemini_api_key="k", story_max_chars=50)
+    short = Settings(groq_api_key="k", story_max_chars=50)
     llm = scripted_llm(make_llm, verdict_answer, lung_profile([BROAD]))
     find_trials(
         "a" * 500,

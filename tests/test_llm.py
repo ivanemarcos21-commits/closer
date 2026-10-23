@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from closer.config import Settings
 from closer.llm import (
-    GeminiLLM,
+    GroqLLM,
     LLMError,
     check_connection,
     classify_error,
@@ -30,55 +30,22 @@ class Answer(BaseModel):
     ok: bool
 
 
-def gemini_reply(text: str) -> dict[str, Any]:
-    return {
-        "candidates": [
-            {"content": {"role": "model", "parts": [{"text": text}]}, "finishReason": "STOP", "index": 0}
-        ],
-        "usageMetadata": {"promptTokenCount": 5, "candidatesTokenCount": 3, "totalTokenCount": 8},
-    }
+def groq_reply(text: str, finish: str = "stop") -> dict[str, Any]:
+    return {"choices": [{"message": {"role": "assistant", "content": text}, "finish_reason": finish}]}
 
 
-def error_reply(code: int, status: str, message: str, details: list | None = None) -> dict[str, Any]:
-    body: dict[str, Any] = {"code": code, "message": message, "status": status}
-    if details:
-        body["details"] = details
-    return {"error": body}
+def error_reply(message: str) -> dict[str, Any]:
+    return {"error": {"message": message}}
 
 
-DAILY_QUOTA = error_reply(
-    429,
-    "RESOURCE_EXHAUSTED",
-    "You exceeded your current quota",
-    [
-        {
-            "@type": "type.googleapis.com/google.rpc.QuotaFailure",
-            "violations": [{"quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}],
-        }
-    ],
-)
-PER_MINUTE_QUOTA = error_reply(
-    429,
-    "RESOURCE_EXHAUSTED",
-    "Quota exceeded",
-    [
-        {
-            "@type": "type.googleapis.com/google.rpc.QuotaFailure",
-            "violations": [{"quotaId": "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"}],
-        },
-        {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "7s"},
-    ],
-)
-
-
-def make_gemini(handler, **kwargs):
+def make_groq(handler, **kwargs):
     sleeps: list[float] = []
     http = httpx.Client(transport=httpx.MockTransport(handler))
-    llm = GeminiLLM("test-key", "test-model", http_client=http, sleep=sleeps.append, **kwargs)
+    llm = GroqLLM("test-key", "test-model", http_client=http, sleep=sleeps.append, **kwargs)
     return llm, sleeps
 
 
-def ask(llm: GeminiLLM, **kwargs) -> Answer:
+def ask(llm: GroqLLM, **kwargs) -> Answer:
     return llm.generate(system="sys", prompt="hello", schema=Answer, **kwargs)
 
 
@@ -126,38 +93,38 @@ def test_profile_schema_keeps_nullability_and_array_bounds():
 # --------------------------------------------------------------------------- wire format
 
 
-def test_request_matches_the_documented_generate_content_format():
+def test_request_matches_the_groq_chat_completions_format():
     seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
-        return httpx.Response(200, json=gemini_reply('{"ok": true}'))
+        return httpx.Response(200, json=groq_reply('{"ok": true}'))
 
-    llm, _ = make_gemini(handler)
+    llm, _ = make_groq(handler)
     assert ask(llm) == Answer(ok=True)
 
     request = seen[0]
     assert request.method == "POST"
-    assert request.url.path == "/v1beta/models/test-model:generateContent"
-    assert request.headers["x-goog-api-key"] == "test-key"
+    assert request.url.path == "/openai/v1/chat/completions"
+    assert request.headers["authorization"] == "Bearer test-key"
     body = json.loads(request.content)
-    assert body["systemInstruction"]["parts"][0]["text"] == "sys"
-    assert body["contents"][0]["parts"][0]["text"] == "hello"
-    config = body["generationConfig"]
-    assert config["responseMimeType"] == "application/json"
-    assert config["responseJsonSchema"]["properties"]["ok"] == {"type": "boolean"}
-    assert config["maxOutputTokens"] == 8192  # one answer can never run up an unbounded bill
+    assert body["messages"][0] == {"role": "system", "content": "sys"}
+    assert body["messages"][1] == {"role": "user", "content": "hello"}
+    schema = body["response_format"]["json_schema"]
+    assert schema["name"] == "Answer"
+    assert schema["schema"]["properties"]["ok"] == {"type": "boolean"}
+    assert body["max_tokens"] == 8192
 
 
 def test_a_different_model_can_be_requested_per_call():
     seen: list[httpx.Request] = []
-    llm, _ = make_gemini(lambda r: (seen.append(r), httpx.Response(200, json=gemini_reply('{"ok": true}')))[1])
+    llm, _ = make_groq(lambda r: (seen.append(r), httpx.Response(200, json=groq_reply('{"ok": true}')))[1])
     ask(llm, model="bigger-model")
-    assert seen[0].url.path.endswith("/models/bigger-model:generateContent")
+    assert json.loads(seen[0].content)["model"] == "bigger-model"
 
 
 def test_json_wrapped_in_a_code_fence_is_still_parsed():
-    llm, _ = make_gemini(lambda r: httpx.Response(200, json=gemini_reply('```json\n{"ok": true}\n```')))
+    llm, _ = make_groq(lambda r: httpx.Response(200, json=groq_reply('```json\n{"ok": true}\n```')))
     assert ask(llm).ok is True
 
 
@@ -169,12 +136,12 @@ def test_daily_quota_fails_at_once_without_retrying():
 
     def handler(request):
         calls.append(1)
-        return httpx.Response(429, json=DAILY_QUOTA)
+        return httpx.Response(429, json=error_reply("Rate limit reached for tokens per day"))
 
-    llm, sleeps = make_gemini(handler)
+    llm, sleeps = make_groq(handler)
     with pytest.raises(LLMError) as caught:
         ask(llm)
-    assert caught.value.kind == "quota_daily" and "midnight Pacific" in str(caught.value)
+    assert caught.value.kind == "quota_daily" and "daily limit" in str(caught.value)
     assert len(calls) == 1 and sleeps == []
 
 
@@ -184,17 +151,19 @@ def test_per_minute_limit_waits_for_the_delay_google_asks_for():
     def handler(request):
         calls.append(1)
         if len(calls) == 1:
-            return httpx.Response(429, json=PER_MINUTE_QUOTA)
-        return httpx.Response(200, json=gemini_reply('{"ok": true}'))
+            return httpx.Response(
+                429, json=error_reply("Rate limit reached"), headers={"retry-after": "7"}
+            )
+        return httpx.Response(200, json=groq_reply('{"ok": true}'))
 
-    llm, sleeps = make_gemini(handler)
+    llm, sleeps = make_groq(handler)
     assert ask(llm).ok
     assert sleeps == [7.0]
 
 
 def test_overloaded_service_backs_off_and_then_gives_up():
-    llm, sleeps = make_gemini(
-        lambda r: httpx.Response(503, json=error_reply(503, "UNAVAILABLE", "overloaded")),
+    llm, sleeps = make_groq(
+        lambda r: httpx.Response(503, json=error_reply("overloaded")),
         max_attempts=3,
     )
     with pytest.raises(LLMError) as caught:
@@ -204,24 +173,22 @@ def test_overloaded_service_backs_off_and_then_gives_up():
 
 
 def test_a_rejected_key_is_reported_with_how_to_fix_it():
-    llm, sleeps = make_gemini(
-        lambda r: httpx.Response(
-            400, json=error_reply(400, "INVALID_ARGUMENT", "API key not valid. Please pass a valid API key.")
-        )
+    llm, sleeps = make_groq(
+        lambda r: httpx.Response(401, json=error_reply("Invalid API Key"))
     )
     with pytest.raises(LLMError) as caught:
         ask(llm)
-    assert caught.value.kind == "auth" and "GEMINI_API_KEY" in str(caught.value)
+    assert caught.value.kind == "auth" and "GROQ_API_KEY" in str(caught.value)
     assert sleeps == []
 
 
 def test_an_unknown_model_name_points_to_the_model_list():
-    llm, _ = make_gemini(
-        lambda r: httpx.Response(404, json=error_reply(404, "NOT_FOUND", "models/x is not found"))
+    llm, _ = make_groq(
+        lambda r: httpx.Response(404, json=error_reply("The model `x` does not exist"))
     )
     with pytest.raises(LLMError) as caught:
         ask(llm)
-    assert caught.value.kind == "model" and "GEMINI_MODEL" in str(caught.value)
+    assert caught.value.kind == "model" and "GROQ_MODEL" in str(caught.value)
 
 
 def test_a_blocked_prompt_is_reported_not_retried():
@@ -229,18 +196,18 @@ def test_a_blocked_prompt_is_reported_not_retried():
 
     def handler(request):
         calls.append(1)
-        return httpx.Response(200, json={"promptFeedback": {"blockReason": "SAFETY"}})
+        return httpx.Response(200, json=groq_reply("", finish="content_filter"))
 
-    llm, _ = make_gemini(handler)
+    llm, _ = make_groq(handler)
     with pytest.raises(LLMError) as caught:
         ask(llm)
-    assert caught.value.kind == "blocked" and "SAFETY" in str(caught.value)
+    assert caught.value.kind == "blocked" and "content_filter" in str(caught.value)
     assert len(calls) == 1
 
 
 def test_a_candidate_stopped_for_safety_is_treated_as_blocked():
-    reply = {"candidates": [{"finishReason": "SAFETY", "index": 0}]}
-    llm, _ = make_gemini(lambda r: httpx.Response(200, json=reply))
+    reply = groq_reply("", finish="content_filter")
+    llm, _ = make_groq(lambda r: httpx.Response(200, json=reply))
     with pytest.raises(LLMError) as caught:
         ask(llm)
     assert caught.value.kind == "blocked"
@@ -251,9 +218,9 @@ def test_malformed_json_is_asked_for_once_more_and_then_reported():
 
     def handler(request):
         calls.append(1)
-        return httpx.Response(200, json=gemini_reply("this is not json"))
+        return httpx.Response(200, json=groq_reply("this is not json"))
 
-    llm, sleeps = make_gemini(handler)
+    llm, sleeps = make_groq(handler)
     with pytest.raises(LLMError) as caught:
         ask(llm)
     assert caught.value.kind == "bad_output"
@@ -266,14 +233,14 @@ def test_malformed_json_that_recovers_on_the_second_try_succeeds():
     def handler(request):
         calls.append(1)
         text = "oops" if len(calls) == 1 else '{"ok": true}'
-        return httpx.Response(200, json=gemini_reply(text))
+        return httpx.Response(200, json=groq_reply(text))
 
-    llm, _ = make_gemini(handler)
+    llm, _ = make_groq(handler)
     assert ask(llm).ok and len(calls) == 2
 
 
 def test_schema_violations_count_as_bad_output():
-    llm, _ = make_gemini(lambda r: httpx.Response(200, json=gemini_reply('{"ok": "not a bool"}')))
+    llm, _ = make_groq(lambda r: httpx.Response(200, json=groq_reply('{"ok": "not a bool"}')))
     with pytest.raises(LLMError) as caught:
         ask(llm)
     assert caught.value.kind == "bad_output"
@@ -286,9 +253,9 @@ def test_network_timeouts_are_retried():
         calls.append(1)
         if len(calls) == 1:
             raise httpx.ReadTimeout("slow", request=request)
-        return httpx.Response(200, json=gemini_reply('{"ok": true}'))
+        return httpx.Response(200, json=groq_reply('{"ok": true}'))
 
-    llm, sleeps = make_gemini(handler)
+    llm, sleeps = make_groq(handler)
     assert ask(llm).ok and len(sleeps) == 1
 
 
@@ -302,7 +269,7 @@ def test_retries_stop_once_waiting_would_blow_the_total_deadline():
         raise httpx.ReadTimeout("slow", request=request)
 
     http = httpx.Client(transport=httpx.MockTransport(handler))
-    llm = GeminiLLM(
+    llm = GroqLLM(
         "k", "m", http_client=http, sleep=lambda s: None, clock=lambda: clock["now"], deadline_s=120.0
     )
     with pytest.raises(LLMError) as caught:
@@ -320,7 +287,7 @@ def test_certificate_problems_fail_fast():
         error.__cause__ = ssl.SSLCertVerificationError("self-signed certificate")
         raise error
 
-    llm, sleeps = make_gemini(handler)
+    llm, sleeps = make_groq(handler)
     with pytest.raises(LLMError) as caught:
         ask(llm)
     assert caught.value.kind == "certificate" and "security certificate" in str(caught.value)
@@ -329,8 +296,8 @@ def test_certificate_problems_fail_fast():
 
 def test_error_messages_never_contain_the_prompt():
     secret = "SECRET-PATIENT-TEXT"
-    llm, _ = make_gemini(
-        lambda r: httpx.Response(400, json=error_reply(400, "INVALID_ARGUMENT", "bad schema"))
+    llm, _ = make_groq(
+        lambda r: httpx.Response(400, json=error_reply("bad schema"))
     )
     with pytest.raises(LLMError) as caught:
         llm.generate(system="s", prompt=secret, schema=Answer)
@@ -345,8 +312,8 @@ def test_classify_error_handles_unexpected_exceptions():
 
 def test_patients_never_see_setup_instructions():
     # str(error) is for the person running the app; user_message is for the patient.
-    operator = LLMError("Check GEMINI_API_KEY (free keys: https://aistudio.google.com/apikey).", kind="auth")
-    assert "GEMINI_API_KEY" in str(operator) and "GEMINI_API_KEY" not in operator.user_message
+    operator = LLMError("Check GROQ_API_KEY (free keys: https://console.groq.com/keys).", kind="auth")
+    assert "GROQ_API_KEY" in str(operator) and "GROQ_API_KEY" not in operator.user_message
     for kind in ("auth", "model", "certificate", "bad_request", "unknown"):
         message = LLMError("x", kind=kind).user_message
         assert "isn't working right now" in message and "ClinicalTrials.gov" in message
@@ -379,13 +346,13 @@ def test_extra_list_items_do_not_invalidate_an_answer():
 
 
 def test_create_llm_without_a_key_explains_how_to_get_one():
-    with pytest.raises(LLMError, match="GEMINI_API_KEY") as caught:
-        create_llm(Settings(gemini_api_key=None))
+    with pytest.raises(LLMError, match="GROQ_API_KEY") as caught:
+        create_llm(Settings(groq_api_key=None))
     assert caught.value.kind == "auth"
 
 
 def test_create_llm_returns_a_client_when_a_key_is_present():
-    assert create_llm(Settings(gemini_api_key="k", model="m")).model == "m"
+    assert create_llm(Settings(groq_api_key="k", model="m")).model == "m"
 
 
 def test_check_connection_accepts_a_good_answer_and_rejects_a_bad_one(make_llm):

@@ -10,12 +10,13 @@ from closer.legal import (
 )
 
 
-def test_the_short_notices_match_the_billing_tier():
+def test_the_short_notices_match_whether_messages_are_kept():
     assert "not medical advice" in MEDICAL_BANNER and "emergency" in MEDICAL_BANNER
-    free = privacy_summary(False)
-    paid = privacy_summary(True)
-    assert "may keep it, let its staff read it" in free
-    assert "doesn't use it to train" in paid and "let its staff read it" not in paid
+    logs = privacy_summary(False)
+    kept_off = privacy_summary(True)
+    assert "up to 30 days" in logs
+    assert "does not use that text to train" in kept_off and "does not keep the messages" in kept_off
+    assert "30 days" not in kept_off
 
 
 def test_the_full_notices_cover_the_limits_of_the_tool():
@@ -24,7 +25,7 @@ def test_the_full_notices_cover_the_limits_of_the_tool():
     terms = terms_document(None, None)
     assert "not a medical device" in medical and "placebo" in medical
     assert "not a HIPAA" in privacy and "18 or older" in privacy
-    assert "European Economic Area" in privacy
+    assert "European Economic Area" not in privacy_document(False)
     assert "European Economic Area" not in privacy_document(True)
     assert "not affiliated" in terms and "as-is" in terms
     assert "does not list a person to contact" in terms

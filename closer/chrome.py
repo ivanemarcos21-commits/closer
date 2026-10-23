@@ -10,7 +10,6 @@ from .legal import (
     medical_document,
     privacy_document,
     privacy_summary,
-    publisher_note,
     terms_document,
 )
 
@@ -120,8 +119,8 @@ def render_footer(settings: Settings) -> None:
     st.markdown(medical_document())
 
     st.markdown("### Privacy")
-    st.markdown(privacy_summary(settings.paid_tier))
-    st.markdown(privacy_document(settings.paid_tier))
+    st.markdown(privacy_summary(settings.zero_retention))
+    st.markdown(privacy_document(settings.zero_retention))
 
     st.markdown("### Terms of use")
     st.markdown(terms_document(settings.operator_name, settings.operator_email))
@@ -129,10 +128,8 @@ def render_footer(settings: Settings) -> None:
     st.markdown("### How it works")
     st.markdown(how_it_works())
 
-    with st.expander("For the person running this site"):
-        st.markdown(publisher_note())
     st.caption(
         "Study data: ClinicalTrials.gov, U.S. National Library of Medicine. "
         "Closer is an independent project and is not affiliated with or endorsed by the NLM, "
-        "the NIH, or Google."
+        "the NIH, or Groq."
     )

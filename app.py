@@ -1,7 +1,7 @@
 """Closer - find clinical trials that fit a patient's story.
 
 Run locally:  streamlit run app.py
-Deploy:       Streamlit Community Cloud (main file: app.py; add GEMINI_API_KEY under Secrets).
+Deploy:       Streamlit Community Cloud (main file: app.py; add GROQ_API_KEY under Secrets).
 """
 
 from __future__ import annotations
@@ -36,11 +36,10 @@ logging.getLogger("httpx").setLevel(logging.WARNING)  # httpx logs full request 
 COOLDOWN_SECONDS = 15  # per visitor: stops accidental double searches
 _SEX_CHOICES = {"Not specified": None, "Female": "FEMALE", "Male": "MALE"}
 _SECRET_NAMES = (
-    "GEMINI_API_KEY",
-    "GOOGLE_API_KEY",
-    "GEMINI_MODEL",
-    "GEMINI_MATCH_MODEL",
-    "GEMINI_PAID_TIER",
+    "GROQ_API_KEY",
+    "GROQ_MODEL",
+    "GROQ_MATCH_MODEL",
+    "GROQ_ZERO_RETENTION",
     "OPERATOR_NAME",
     "OPERATOR_EMAIL",
 )
@@ -126,11 +125,12 @@ def render_setup_help() -> None:
     )
     with st.expander("For whoever runs this app"):
         st.markdown(
-            "1. Create a free key at [Google AI Studio](https://aistudio.google.com/apikey).\n"
-            "2. **On your computer:** copy `.env.example` to `.env` and set `GEMINI_API_KEY`.\n"
+            "1. Create a free key at [Groq console](https://console.groq.com/keys).\n"
+            "2. **On your computer:** copy `.env.example` to `.env` and set `GROQ_API_KEY`.\n"
             "3. **On Streamlit Community Cloud:** open the app's **Settings → Secrets** and add "
-            "`GEMINI_API_KEY = \"your-key\"`.\n"
-            "4. Reload this page."
+            "`GROQ_API_KEY = \"your-key\"`.\n"
+            "4. In Groq, open **Settings → Data Controls** and turn on **Zero Data Retention**.\n"
+            "5. Reload this page."
         )
 
 

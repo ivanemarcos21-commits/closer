@@ -25,9 +25,9 @@ PROFILE = PatientProfile(
 @pytest.fixture(autouse=True)
 def configured(monkeypatch):
     monkeypatch.setattr("closer.config._load_dotenv", lambda: None)
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.delenv("GEMINI_MODEL", raising=False)
-    monkeypatch.delenv("GEMINI_MATCH_MODEL", raising=False)
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.delenv("GROQ_MODEL", raising=False)
+    monkeypatch.delenv("GROQ_MATCH_MODEL", raising=False)
 
 
 @pytest.fixture()
@@ -108,8 +108,8 @@ def test_a_criteria_check_the_ai_could_not_do_is_an_error_not_an_answer(monkeypa
 
 
 def test_check_tests_both_configured_models(monkeypatch, make_llm, capsys):
-    monkeypatch.setenv("GEMINI_MODEL", "small-model")
-    monkeypatch.setenv("GEMINI_MATCH_MODEL", "big-model")
+    monkeypatch.setenv("GROQ_MODEL", "small-model")
+    monkeypatch.setenv("GROQ_MATCH_MODEL", "big-model")
     llm = make_llm(lambda **_: SimpleNamespace(ok=True))
     monkeypatch.setattr(match_trials, "create_llm", lambda settings: llm)
     assert match_trials.main(["--check"]) == 0
@@ -126,9 +126,9 @@ def test_check_explains_a_rejected_key(monkeypatch, make_llm, capsys):
 
 
 def test_no_key_gives_setup_instructions(monkeypatch, capsys):
-    monkeypatch.delenv("GEMINI_API_KEY")
+    monkeypatch.delenv("GROQ_API_KEY")
     assert match_trials.main(["--check"]) == 1
-    assert "aistudio.google.com/apikey" in capsys.readouterr().err
+    assert "console.groq.com/keys" in capsys.readouterr().err
 
 
 def test_asking_for_nothing_is_a_usage_error(capsys):

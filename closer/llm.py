@@ -1,8 +1,7 @@
-"""Gemini access behind one small interface.
+"""Groq access behind one small interface.
 
-Everything else in the app talks to ``StructuredLLM.generate()``; only this file knows about
-the google-genai SDK. That keeps the rest of the code testable with a fake, and moving to
-another SDK surface (for example Google's newer Interactions API) a one-file change.
+Everything else in the app talks to ``StructuredLLM.generate()``; only this file knows the
+Groq chat-completions request. That keeps the rest of the code testable with a fake.
 
 Privacy: prompts contain the patient's own words, so nothing in this module ever logs or
 echoes prompt text. Error messages are built from status codes and our own wording only.
@@ -27,8 +26,9 @@ log = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
-MODELS_DOC_URL = "https://ai.google.dev/gemini-api/docs/models"
-API_KEY_URL = "https://aistudio.google.com/apikey"
+MODELS_DOC_URL = "https://console.groq.com/docs/models"
+API_KEY_URL = "https://console.groq.com/keys"
+API_URL = "https://api.groq.com/openai/v1/chat/completions"
 _MAX_RETRY_DELAY_S = 30.0
 
 # Failures that will repeat for every later request too: stop spending quota on them. (A
@@ -139,83 +139,17 @@ def classify_error(exc: BaseException) -> LLMError:
 
 def _classify(exc: BaseException) -> LLMError:
     if is_certificate_error(exc):
-        return LLMError(f"Gemini: {CERTIFICATE_HELP}", kind="certificate")
+        return LLMError(f"Groq: {CERTIFICATE_HELP}", kind="certificate")
     if isinstance(exc, httpx.TimeoutException):
-        return LLMError("Gemini took too long to answer.", kind="network")
+        return LLMError("Groq took too long to answer.", kind="network")
     if isinstance(exc, httpx.HTTPError):
-        return LLMError("Could not reach Gemini (connection problem).", kind="network")
-
-    code = getattr(exc, "code", None)
-    if not isinstance(code, int):
-        code = getattr(exc, "status_code", None)
-    status = str(getattr(exc, "status", "") or "")
-    message = str(getattr(exc, "message", "") or "")
-    details = getattr(exc, "details", None)
-    haystack = f"{status} {message} {_dump(details)}".lower()
-
-    if code == 429 or status == "RESOURCE_EXHAUSTED":
-        squashed = haystack.replace("_", "").replace(" ", "")
-        if "perday" in squashed:
-            return LLMError(
-                "The free daily limit for this Gemini model has been reached. It resets at "
-                "midnight Pacific time. You can also set GEMINI_MODEL to a model with a higher "
-                "free limit.",
-                kind="quota_daily",
-            )
-        return LLMError(
-            "Gemini is receiving too many requests right now.",
-            kind="rate_limit",
-            retry_after=_retry_delay_seconds(details),
-        )
-    if code in (401, 403) or any(
-        marker in haystack
-        for marker in ("api_key_invalid", "api key not valid", "api key expired", "permission_denied")
-    ):
-        return LLMError(
-            f"Gemini rejected the API key or the model is not available to your project. "
-            f"Check GEMINI_API_KEY (free keys: {API_KEY_URL}).",
-            kind="auth",
-        )
-    if code == 404 or ("not found" in haystack and "model" in haystack):
-        return LLMError(
-            f"Gemini does not know that model name. Set GEMINI_MODEL to a current model: "
-            f"{MODELS_DOC_URL}",
-            kind="model",
-        )
-    if isinstance(code, int) and code >= 500:
-        return LLMError("Gemini is temporarily overloaded.", kind="unavailable")
-    if code == 400:
-        return LLMError(f"Gemini rejected the request: {message[:200]}", kind="bad_request")
+        return LLMError("Could not reach Groq (connection problem).", kind="network")
     return LLMError(f"The AI step failed unexpectedly ({type(exc).__name__}).", kind="unknown")
 
 
-def _dump(value: Any) -> str:
-    try:
-        return json.dumps(value, default=str)
-    except (TypeError, ValueError):
-        return ""
-
-
-def _retry_delay_seconds(details: Any) -> float | None:
-    """Find Gemini's ``retryDelay`` ("7s", "0.5s") anywhere inside an error payload."""
-    pending = [details]
-    while pending:
-        item = pending.pop()
-        if isinstance(item, dict):
-            value = item.get("retryDelay")
-            if isinstance(value, str):
-                match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)s\s*", value)
-                if match:
-                    return min(float(match.group(1)), _MAX_RETRY_DELAY_S)
-            pending.extend(item.values())
-        elif isinstance(item, list):
-            pending.extend(item)
-    return None
-
-
-# --------------------------------------------------------------------------- Gemini client
-class GeminiLLM:
-    """``StructuredLLM`` backed by the Gemini API (``generate_content`` + JSON schema)."""
+# --------------------------------------------------------------------------- Groq client
+class GroqLLM:
+    """``StructuredLLM`` backed by Groq chat completions and a JSON schema."""
 
     def __init__(
         self,
@@ -229,81 +163,130 @@ class GeminiLLM:
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        from google import genai  # imported here so the CLIs that skip AI start faster
-        from google.genai import types
-
         self.model = model
-        self._types = types
+        self._api_key = api_key
         self._max_attempts = max(1, max_attempts)
-        self._deadline_s = deadline_s  # one call never keeps a patient waiting longer than this
+        self._deadline_s = deadline_s
         self._sleep = sleep
         self._clock = clock
-        self._client = genai.Client(
-            api_key=api_key,
-            http_options=types.HttpOptions(timeout=int(timeout_s * 1000), httpx_client=http_client),
-        )
+        self._owns_client = http_client is None
+        self._http = http_client or httpx.Client(timeout=timeout_s)
 
     def generate(
         self, *, system: str, prompt: str, schema: type[T], model: str | None = None
     ) -> T:
-        config = self._types.GenerateContentConfig(
-            system_instruction=system,
-            response_mime_type="application/json",
-            response_json_schema=to_gemini_schema(schema),
-            max_output_tokens=MAX_OUTPUT_TOKENS,
-        )
+        body = {
+            "model": model or self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema.__name__,
+                    "strict": False,
+                    "schema": to_gemini_schema(schema),
+                },
+            },
+            "max_tokens": MAX_OUTPUT_TOKENS,
+        }
         bad_outputs = 0
         started = self._clock()
         for attempt in range(1, self._max_attempts + 1):
             try:
-                response = self._client.models.generate_content(
-                    model=model or self.model, contents=prompt, config=config
+                response = self._http.post(
+                    API_URL,
+                    json=body,
+                    headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"},
                 )
-                return _parse_response(response, schema)
+                if response.status_code != 200:
+                    raise _error_from_response(response)
+                return _parse_response(response.json(), schema)
             except LLMError as err:
                 error = err
-            except Exception as exc:  # SDK, HTTP and network failures all end up here
+            except Exception as exc:
                 error = classify_error(exc)
 
             if error.kind == "bad_output":
-                bad_outputs += 1  # one re-ask is worth it; more rarely helps
+                bad_outputs += 1
             if not error.retryable or attempt == self._max_attempts or bad_outputs > 1:
                 raise error
             delay = error.retry_after if error.retry_after is not None else min(2.0**attempt, 20.0)
             if self._clock() - started + delay > self._deadline_s:
-                raise error  # waiting any longer would leave a patient staring at a spinner
-            log.warning("Gemini call failed (%s); retry %d in %.0fs", error.kind, attempt, delay)
+                raise error
+            log.warning("Groq call failed (%s); retry %d in %.0fs", error.kind, attempt, delay)
             self._sleep(delay)
-        raise AssertionError("unreachable")  # the loop always returns or raises
+        raise AssertionError("unreachable")
 
 
-def _parse_response(response: Any, schema: type[T]) -> T:
+def _error_from_response(response: httpx.Response) -> LLMError:
+    """Map a Groq HTTP error to an ``LLMError``. The patient's words are never copied in."""
+    message = ""
     try:
-        text = response.text
-    except Exception:  # the SDK can raise when there is no usable candidate
-        text = None
-    if not text or not text.strip():
-        reason = _block_reason(response)
-        if reason:
-            raise LLMError(f"Gemini declined to process this text ({reason}).", kind="blocked")
-        raise LLMError("Gemini returned an empty answer.", kind="bad_output")
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        if isinstance(error, dict):
+            message = str(error.get("message") or "")
+        elif isinstance(error, str):
+            message = error
+    haystack = message.lower()
+    code = response.status_code
+    retry_after = _retry_after_header(response)
+
+    if code == 429:
+        if any(word in haystack for word in ("per day", "daily", "tokens per day", "tpd")):
+            return LLMError(
+                "The free daily limit for this Groq model has been reached. It resets later "
+                f"today. You can also set GROQ_MODEL to another free model: {MODELS_DOC_URL}",
+                kind="quota_daily",
+            )
+        return LLMError("Groq is receiving too many requests right now.", kind="rate_limit", retry_after=retry_after)
+    if code in (401, 403) or "api key" in haystack:
+        return LLMError(
+            f"Groq rejected the API key. Check GROQ_API_KEY (free keys: {API_KEY_URL}).",
+            kind="auth",
+        )
+    if code == 404 or ("model" in haystack and "not" in haystack):
+        return LLMError(
+            f"Groq does not know that model name. Set GROQ_MODEL to a current model: {MODELS_DOC_URL}",
+            kind="model",
+        )
+    if code >= 500:
+        return LLMError("Groq is temporarily overloaded.", kind="unavailable")
+    if code == 400:
+        return LLMError(f"Groq rejected the request: {message[:200]}", kind="bad_request")
+    return LLMError(f"Groq returned HTTP {code}.", kind="unknown")
+
+
+def _retry_after_header(response: httpx.Response) -> float | None:
+    raw = response.headers.get("retry-after", "")
+    try:
+        return min(max(float(raw), 0.0), _MAX_RETRY_DELAY_S)
+    except ValueError:
+        return None
+
+
+def _parse_response(payload: Any, schema: type[T]) -> T:
+    if not isinstance(payload, dict):
+        raise LLMError("Groq returned an unexpected response.", kind="bad_output")
+    choices = payload.get("choices") or []
+    message = choices[0].get("message") if choices and isinstance(choices[0], dict) else {}
+    if not isinstance(message, dict):
+        message = {}
+    finish = str((choices[0].get("finish_reason") if choices and isinstance(choices[0], dict) else "") or "")
+    text = message.get("content")
+    if finish.lower() in {"content_filter", "safety"} or message.get("refusal"):
+        raise LLMError(f"Groq declined to process this text ({finish or 'refusal'}).", kind="blocked")
+    if not isinstance(text, str) or not text.strip():
+        raise LLMError("Groq returned an empty answer.", kind="bad_output")
     try:
         return schema.model_validate_json(_strip_json_fence(text))
     except ValidationError as exc:
-        raise LLMError("Gemini answered in an unexpected format.", kind="bad_output") from exc
-
-
-def _block_reason(response: Any) -> str | None:
-    feedback = getattr(response, "prompt_feedback", None)
-    reason = getattr(feedback, "block_reason", None)
-    if reason:
-        return str(getattr(reason, "name", reason))
-    for candidate in getattr(response, "candidates", None) or []:
-        finish = getattr(candidate, "finish_reason", None)
-        name = str(getattr(finish, "name", finish) or "")
-        if name and name not in {"STOP", "MAX_TOKENS", "FINISH_REASON_UNSPECIFIED"}:
-            return name
-    return None
+        raise LLMError("Groq answered in an unexpected format.", kind="bad_output") from exc
 
 
 def _strip_json_fence(text: str) -> str:
@@ -312,15 +295,14 @@ def _strip_json_fence(text: str) -> str:
     return match.group(1) if match else stripped
 
 
-# --------------------------------------------------------------------------- helpers
-def create_llm(settings: Settings) -> GeminiLLM:
-    if not settings.gemini_api_key:
+def create_llm(settings: Settings) -> GroqLLM:
+    if not settings.groq_api_key:
         raise LLMError(
-            f"No Gemini API key is configured. Create a free key at {API_KEY_URL} and set "
-            "GEMINI_API_KEY (see .env.example).",
+            f"No Groq API key is configured. Create a free key at {API_KEY_URL} and set "
+            "GROQ_API_KEY (see .env.example).",
             kind="auth",
         )
-    return GeminiLLM(settings.gemini_api_key, settings.model, timeout_s=settings.llm_timeout_s)
+    return GroqLLM(settings.groq_api_key, settings.model, timeout_s=settings.llm_timeout_s)
 
 
 class _Ping(BaseModel):
@@ -336,4 +318,4 @@ def check_connection(llm: StructuredLLM, *, model: str | None = None) -> None:
         model=model,
     )
     if not answer.ok:
-        raise LLMError("Gemini answered, but not as expected.", kind="bad_output")
+        raise LLMError("Groq answered, but not as expected.", kind="bad_output")

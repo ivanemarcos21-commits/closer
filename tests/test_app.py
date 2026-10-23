@@ -20,7 +20,7 @@ APP_FILE = Path(__file__).parent.parent / "app.py"
 def isolated_settings(monkeypatch, tmp_path):
     """Keep the developer's real .env and Streamlit secrets out of the tests."""
     monkeypatch.setattr("closer.config._load_dotenv", lambda: None)
-    for name in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_MODEL", "GEMINI_MATCH_MODEL", "GEMINI_PAID_TIER"):
+    for name in ("GROQ_API_KEY", "GROQ_MODEL", "GROQ_MATCH_MODEL", "GROQ_ZERO_RETENTION"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(tmp_path)  # so no stray .streamlit/secrets.toml is found
     # The app caches its services per process (including the shared search budget); start clean.
@@ -30,7 +30,7 @@ def isolated_settings(monkeypatch, tmp_path):
 
 @pytest.fixture()
 def with_key(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
 
 
 def new_app() -> AppTest:
@@ -80,17 +80,18 @@ def test_page_renders_with_safety_and_privacy_copy(with_key):
     text = page_text(at)
     assert "not medical advice" in text and "emergency" in text
     assert "names, birth dates, addresses or ID numbers" in text
-    assert "may keep it, let its staff read it" in text  # honest about Google's free tier
+    assert "up to 30 days" in text  # honest when Zero Data Retention is off
     assert "### Privacy" in text and "### Medical notice" in text
     assert not find_button(at, "Find trials").disabled
 
 
 def test_the_privacy_notice_changes_if_the_key_is_billed(monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setenv("GEMINI_PAID_TIER", "true")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("GROQ_ZERO_RETENTION", "true")
     at = new_app().run()
     text = page_text(at)
-    assert "doesn't use it to train" in text and "let its staff read it" not in text
+    assert "does not keep the messages" in text
+    assert "Unless Zero Data Retention is turned on" not in text
 
 
 def test_the_form_asks_about_the_patient_not_the_user(with_key):
@@ -251,10 +252,10 @@ def test_start_over_forgets_the_whole_person(with_key, monkeypatch, make_trial, 
 @pytest.mark.parametrize(
     ("raised", "expected", "forbidden"),
     [
-        (LLMError("Check GEMINI_API_KEY (free keys: https://aistudio.google.com/apikey).", kind="auth"), "isn't working right now", "GEMINI_API_KEY"),
-        (LLMError("Set GEMINI_MODEL to a model with a higher limit", kind="quota_daily"), "try again tomorrow", "GEMINI_MODEL"),
-        (LLMError("Gemini is receiving too many requests", kind="rate_limit"), "busy right now", "Gemini is receiving"),
-        (NoConditionError("We could not find a medical condition in that text."), "emergency number", "GEMINI"),
+        (LLMError("Check GROQ_API_KEY (free keys: https://console.groq.com/keys).", kind="auth"), "isn't working right now", "GROQ_API_KEY"),
+        (LLMError("Set GROQ_MODEL to a model with a higher limit", kind="quota_daily"), "try again tomorrow", "GROQ_MODEL"),
+        (LLMError("Groq is receiving too many requests", kind="rate_limit"), "busy right now", "Groq is receiving"),
+        (NoConditionError("We could not find a medical condition in that text."), "emergency number", "GROQ"),
         (ClinicalTrialsRejectedError("HTTP 400: Error parsing query SECRET-PATIENT-TEXT"), "plainer words", "SECRET-PATIENT-TEXT"),
         (ClinicalTrialsError("not responding (HTTP 503)"), "couldn't reach ClinicalTrials.gov", "503"),
         (RuntimeError("SECRET-PATIENT-TEXT"), "Something unexpected went wrong", "SECRET-PATIENT-TEXT"),
