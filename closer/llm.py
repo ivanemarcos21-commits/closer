@@ -35,7 +35,7 @@ _MAX_RETRY_DELAY_S = 30.0
 # "blocked" answer depends on that one request's text, so it is NOT in this set.)
 FATAL_KINDS = frozenset({"auth", "model", "quota_daily", "certificate"})
 _RETRYABLE_KINDS = frozenset({"rate_limit", "unavailable", "network", "bad_output"})
-MAX_OUTPUT_TOKENS = 8192  # bounds the cost of one answer; a 5-trial verdict is ~1,500 tokens
+MAX_OUTPUT_TOKENS = 2048  # a two-study answer is far smaller; a high cap makes the free tier wait
 
 _BUSY_FOR_PATIENTS = "The AI helper is busy right now. Please wait a minute and try again."
 _PATIENT_MESSAGES = {
@@ -195,6 +195,8 @@ class GroqLLM:
                 },
             },
             "max_tokens": MAX_OUTPUT_TOKENS,
+            # The free plan bills reasoning tokens too. Low effort is enough to sort a listing.
+            "reasoning_effort": "low",
         }
         bad_outputs = 0
         started = self._clock()

@@ -113,7 +113,8 @@ def test_request_matches_the_groq_chat_completions_format():
     schema = body["response_format"]["json_schema"]
     assert schema["name"] == "Answer"
     assert schema["schema"]["properties"]["ok"] == {"type": "boolean"}
-    assert body["max_tokens"] == 8192
+    assert body["max_tokens"] == 2048
+    assert body["reasoning_effort"] == "low"
 
 
 def test_a_different_model_can_be_requested_per_call():

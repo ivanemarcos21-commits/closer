@@ -207,8 +207,8 @@ def _search_form(settings: Settings) -> tuple[bool, SearchInputs]:
             max_trials = st.select_slider(
                 "How many studies should the AI read?",
                 options=[10, 20, 30],
-                value=20,
-                help="More studies means a wider search but a longer wait and more of the free AI quota.",
+                value=10,
+                help="10 is the fastest. 20 and 30 read more studies and take longer on the free AI plan.",
             )
         st.checkbox(CONSENT_LABEL, key="consent")
         submitted = st.form_submit_button(
